@@ -1,0 +1,59 @@
+"""Regex checks for data/scripts/extract_notices.py, using wording seen in real 2024 notices."""
+import pathlib
+import sys
+
+import pytest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "data" / "scripts"))
+from extract_notices import DAYS_RE, PARTY_RE, classify, parcel_refs  # noqa: E402
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("registered under title No. Kajiado/Kaputiei South/2645, and whereas", ["Kajiado/Kaputiei South/2645"]),
+    ("registered under title No. EM/KESSUP B/765, and whereas", ["EM/KESSUP B/765"]),
+    ("registered under title Loc.19/Kiawambogo/1019, and whereas", ["Loc.19/Kiawambogo/1019"]),
+    ("all that piece of land known as Kaptagat/Lotonyok Block 5 (Ngeleltarit)/661, situate in",
+     ["Kaptagat/Lotonyok Block 5 (Ngeleltarit)/661"]),
+    ("registered under title No. Ruiru/Ruiru East Block 4/T.1533, and whereas", ["Ruiru/Ruiru East Block 4/T.1533"]),
+    ("registered under title No. Narok/CIS Mara/Nairagie\nEnkare/939, and whereas", ["Narok/CIS Mara/Nairagie Enkare/939"]),
+    ("registered under title Nos. Miti Mingi/Mbaruk Block 5/4145, 4146 and 4147 (Kiungururia), and",
+     ["Miti Mingi/Mbaruk Block 5/4145", "Miti Mingi/Mbaruk Block 5/4146", "Miti Mingi/Mbaruk Block 5/4147"]),
+    ("known as L.R. No. 209/3466, situate in", ["L.R. No. 209/3466"]),
+])
+def test_parcel_refs(text, expected):
+    assert parcel_refs(text) == sorted(expected)
+
+
+def test_neighbouring_parcels_stay_distinct():
+    a = parcel_refs("under title No. Nairobi/Block 82/288, and")
+    b = parcel_refs("under title No. Nairobi/Block 82/289, and")
+    assert a != b
+
+
+@pytest.mark.parametrize("text, days", [
+    ("after the expiration of sixty (60) days from the date hereof", 60),
+    ("after the expiration of sixty\n(60) days from the date hereof", 60),
+    ("after the expiration of thirty (30) days from the date hereof", 30),
+])
+def test_objection_days(text, days):
+    assert int(DAYS_RE.search(text).group(1)) == days
+
+
+@pytest.mark.parametrize("text, name", [
+    ("WHEREAS Kisentu Orikae Kasikua (ID/0790881), is registered", "Kisentu Orikae Kasikua"),
+    ("WHEREAS Sirma Korio Kibaliat, of P.O. Box 498, Iten", "Sirma Korio Kibaliat"),
+    ("WHEREAS Margaret Nyokabi Mbugua, as the administrator of the estate of", "Margaret Nyokabi Mbugua"),
+])
+def test_party_names(text, name):
+    assert PARTY_RE.search(text).group(1).strip() == name
+
+
+@pytest.mark.parametrize("head, kind", [
+    ("THE LAND REGISTRATION ACT\n(NO. 3 OF 2012)\nISSUE OF A NEW LAND TITLE DEED", "lost_title"),
+    ("THE LAND REGISTRATION ACT\nISSUE OF A PROVISIONAL CERTIFICATE OF TITLE", "lost_title"),
+    ("THE LAND REGISTRATION ACT\nREGISTRATION OF INSTRUMENT", "transfer"),
+    ("THE LAND ACT\nINTENTION TO ACQUIRE LAND", "compulsory_acquisition"),
+    ("THE LAND REGISTRATION ACT\nRECONSTRUCTION OF LOST OR DESTROYED LAND REGISTER", "other"),
+])
+def test_classify(head, kind):
+    assert classify(head) == kind
