@@ -18,8 +18,8 @@ from common import EXTRACTS, RAW_PDF, get_logger, pdf_name, read_issues
 
 # Matched against page 1 with all whitespace removed, because scanned issues OCR as
 # "V ol . CX X V - No. 172" and "NAIROBI , 28th July". "No. 245 A" is issue 245A.
-# OCR misreads seen: "EXXV" for "CXXV", a stray "I." after the number.
-VOL_RE = re.compile(r"VOL\.?[CXLVIE]+\W{0,3}NO\.?(\d+)(?:\W?([A-D])(?![A-Z]))?")
+# OCR misreads seen: "Voi"/"VoI" for "Vol", "EXXV"/"Cxxrv" for "CXXV", a stray "I." after the number.
+VOL_RE = re.compile(r"VO[LI1]\.?[CXLVIER]{3,6}\W{0,3}NO\.?(\d+)(?:\W?([A-D])(?![A-Z]))?")
 DATE_RE = re.compile(r"NAIROBI,?(\d{1,2})(?:ST|ND|RD|TH)?([A-Z]+),?(\d{4})")
 OUT = EXTRACTS / "gazette_pdf_check.csv"
 
