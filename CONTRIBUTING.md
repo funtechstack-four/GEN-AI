@@ -7,8 +7,8 @@ How we manage branches, commits, issues and pull requests in GEN-AI. Short versi
 
 | Branch | What it is | Who changes it |
 |---|---|---|
-| `main` | What we submit. Always runs. | Only through a PR from `dev`. No direct pushes, ever. |
-| `dev` | Integration branch and the default. All work branches start here. | Only through PRs. No direct pushes. |
+| `main` | The default branch and what we submit. Always runs. | Only through a PR from `dev`. No direct pushes, ever. |
+| `dev` | Integration branch. All work branches start here and merge back here. | Only through PRs. No direct pushes. |
 | `<type>/<short-name>` | One piece of work. Lives for hours to a day or two. | Its author. Deleted after merge. |
 
 ### Naming work branches
@@ -63,7 +63,7 @@ gh pr create --base dev --title "feat(agents): add evidence critic" --body "Clos
 
 ## 5. Pull requests
 
-- **Base:** `dev` (only release PRs target `main`).
+- **Base:** `dev`. GitHub suggests `main` because it's the default, so switch the base to `dev` (or use `gh pr create --base dev`). Only release PRs target `main`.
 - **Title:** written as a commit message (`feat(data): …`). It becomes the squash commit on `dev`.
 - **Description:** use the template: what changed, how to test, `Closes #<n>`.
 - **Size:** aim under ~400 changed lines (generated data files don't count). Split big work.
