@@ -11,6 +11,10 @@ How we manage branches, commits, issues and pull requests in GEN-AI. Short versi
 | `dev` | Integration branch. All work branches start here and merge back here. | Only through PRs. No direct pushes. |
 | `<type>/<short-name>` | One piece of work. Lives for hours to a day or two. | Its author. Deleted after merge. |
 
+GitHub enforces this: `main` and `dev` need a PR with 1 approval, all review comments resolved,
+and can't be force-pushed or deleted. On `main` the rule also binds admins; on `dev` an admin can
+override in an emergency (say so in the team chat if you do).
+
 ### Naming work branches
 
 `<type>/<short-name-in-kebab-case>`, optionally with the issue number: `feat/12-gazette-extraction`.
