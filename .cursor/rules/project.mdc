@@ -1,0 +1,12 @@
+---
+description: Core rules for the Land Title Due-Diligence Agent
+alwaysApply: true
+---
+- Stack: Python 3.11 + FastAPI + LangGraph (agents/, data/), Next.js 14 App Router (web/), Node 24 + tsx (services/meterless-bridge/).
+- Verdicts are exactly STOP, HIGH RISK or VERIFY FIRST. Never write the words "clean", "safe" or "clear title" in code, UI copy, prompts or docs.
+- Every Claim.quote must be a verbatim substring of its source text. Quote checks are deterministic Python, never an LLM judgment.
+- Parcel identity = registration section + district + number. Never fuzzy-match parcel numbers.
+- Every external call (Zetaris, NIM, Meterless) has a timeout and a SAMPLE_MODE=true path that reads data/cache/.
+- Secrets come from environment variables only. Never write keys, IPs or .pem paths into files.
+- Contracts live in agents/contracts.py and are frozen. Propose changes; don't edit them.
+- vendor/meterless/ is pre-existing open source. Never modify it.
