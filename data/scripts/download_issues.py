@@ -40,7 +40,10 @@ def main() -> None:
             continue
         body = fetch_bytes(row["pdf_url"], log)
         time.sleep(args.delay)
-        if not body or not body.startswith(b"%PDF"):
+        # Some Kenya Law files have bytes before the header, which PDF readers accept.
+        if not body or b"%PDF" not in body[:1024]:
+            if body:
+                log.warning("not a PDF (%d bytes): %s", len(body), row["pdf_url"])
             failed += 1
             continue
         dest.parent.mkdir(parents=True, exist_ok=True)

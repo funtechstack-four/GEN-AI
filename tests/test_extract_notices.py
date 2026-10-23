@@ -57,3 +57,17 @@ def test_party_names(text, name):
 ])
 def test_classify(head, kind):
     assert classify(head) == kind
+
+
+from verify_pdfs import read_masthead  # noqa: E402
+
+
+@pytest.mark.parametrize("head, expected", [
+    ("THE KENYA GAZETTE\nVol. CXXVI—No. 147\nNAIROBI, 27th September, 2024\nPrice Sh. 60", ("147", "2024-09-27")),
+    ("S P E C IA L IS S U E\nP r i ce Sh . 60 NAIROBI , 28th July, 2023 V ol . CX X V - No. 172 Ca u se", ("172", "2023-07-28")),
+    ("Vol. CXXV �No. 245 �A� NAIROBI, 16th November, 2023", ("245a", "2023-11-16")),
+    ("PRICE SH. 60 VOL. EXXV-NO. 231 CAUSE NO. E586", ("231", None)),
+    ("Vol. CXXVI-No. 148 I., GAZETTE NOTICE", ("148", None)),
+])
+def test_read_masthead(head, expected):
+    assert read_masthead(head) == expected

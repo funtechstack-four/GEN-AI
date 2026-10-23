@@ -18,6 +18,7 @@ import pyarrow.parquet as pq
 import pymupdf
 
 from common import EXTRACTS, NOTICES_PARQUET, RAW_PDF, get_logger, read_issues
+from verify_pdfs import read_masthead
 
 NOTICE_RE = re.compile(r"GAZETTE\s+NOTICE\.?\s+NO\.?\s*(\d{3,6})")
 
@@ -93,9 +94,11 @@ def heading_lines(text: str) -> tuple[str, str]:
     return act, title
 
 
-def notices_in_pdf(path, issue_date: str, gazette_no: str, pdf_url: str):
+def notices_in_pdf(path, catalogue_date: str, gazette_no: str, pdf_url: str):
     doc = pymupdf.open(path)
     pages = [p.get_text() for p in doc]
+    # The date printed on the masthead wins: Kenya Law's catalogue is off for a few issues.
+    issue_date = (read_masthead(pages[0])[1] if pages else None) or catalogue_date
     starts, full = [], ""
     for page_text in pages:
         starts.append(len(full))
@@ -124,6 +127,7 @@ def notices_in_pdf(path, issue_date: str, gazette_no: str, pdf_url: str):
         yield {
             "notice_id": f"{issue_date}:{notice_no}",
             "issue_date": issue_date,
+            "catalogue_date": catalogue_date,
             "gazette_no": gazette_no,
             "notice_no": notice_no,
             "notice_type": notice_type,
@@ -141,7 +145,8 @@ def notices_in_pdf(path, issue_date: str, gazette_no: str, pdf_url: str):
 
 
 SCHEMA = pa.schema([
-    ("notice_id", pa.string()), ("issue_date", pa.string()), ("gazette_no", pa.string()),
+    ("notice_id", pa.string()), ("issue_date", pa.string()), ("catalogue_date", pa.string()),
+    ("gazette_no", pa.string()),
     ("notice_no", pa.string()), ("notice_type", pa.string()), ("act", pa.string()),
     ("notice_title", pa.string()), ("parcel_refs", pa.list_(pa.string())),
     ("parties", pa.list_(pa.string())), ("objection_days", pa.int32()),
