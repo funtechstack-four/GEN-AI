@@ -13,3 +13,4 @@ node_modules/
 logs/*
 !logs/samples/
 research/
+data/raw/
