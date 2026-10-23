@@ -20,7 +20,8 @@ import pymupdf
 from common import EXTRACTS, NOTICES_PARQUET, RAW_PDF, get_logger, read_issues
 from verify_pdfs import read_masthead
 
-NOTICE_RE = re.compile(r"GAZETTE\s+NOTICE\.?\s+NO\.?\s*(\d{3,6})")
+# Scanned issues OCR with spaces inside words: "G a zet t e N o t ice N o . 799 2".
+NOTICE_RE = re.compile(r"G\s?A\s?Z\s?E\s?T\s?T\s?E\s+N\s?O\s?T\s?I\s?C\s?E\s*\.?\s*N\s?[O0]\s?\.?\s*(\d(?:\s?\d){2,4})", re.I)
 
 # A notice is "land" when its heading names one of these.
 LAND_MARKERS = (
@@ -28,13 +29,15 @@ LAND_MARKERS = (
     "LAND TITLES ACT", "GOVERNMENT LANDS ACT", "SECTIONAL PROPERTIES ACT",
     "THE LAND ACT", "NATIONAL LAND COMMISSION", "SUCCESSION CAUSE", "LOSS OF TITLE DEEDS",
 )
-# Checked in order against the heading; first match wins.
+# Checked against the notice title first, then the opening text; first match wins.
+# Transfer comes before succession: transfer notices often cite "Succession Cause No. ...".
 TYPE_RULES = (
-    ("compulsory_acquisition", ("ACQUI", "INQUIRY", "NATIONAL LAND COMMISSION")),
-    ("succession", ("SUCCESSION CAUSE",)),
     ("lost_title", ("ISSUE OF A NEW", "ISSUE OF NEW", "ISSUE OF A PROVISIONAL", "ISSUE OF A REPLACEMENT",
-                    "ISSUE OF A CERTIFICATE", "LOSS OF", "PROVISIONAL CERTIFICATE")),
+                    "ISSUE OF REPLACEMENT", "ISSUE OF A CERTIFICATE", "LOSS OF", "PROVISIONAL CERTIFICATE")),
     ("transfer", ("REGISTRATION OF INSTRUMENT", "TRANSMISSION", "TRANSFER")),
+    ("compulsory_acquisition", ("INTENTION TO ACQUIRE", "COMPULSORY ACQUISITION", "ACQUISITION OF LAND",
+                                "INQUIRY", "NATIONAL LAND COMMISSION")),
+    ("succession", ("SUCCESSION CAUSE",)),
     ("change_of_name", ("CHANGE OF NAME",)),
 )
 
@@ -74,10 +77,22 @@ def _clean(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip(" ,.")
 
 
-def classify(head: str) -> str:
-    for kind, keys in TYPE_RULES:
-        if any(k in head for k in keys):
-            return kind
+def _squash(s: str) -> str:
+    """Upper-case with all whitespace removed, so spaced OCR text still matches."""
+    return re.sub(r"\s+", "", s).upper()
+
+
+def is_land(head: str) -> bool:
+    sq = _squash(head)
+    return any(_squash(k) in sq for k in LAND_MARKERS)
+
+
+def classify(head: str, title: str = "") -> str:
+    for text in (title, head):
+        sq = _squash(text)
+        for kind, keys in TYPE_RULES:
+            if sq and any(_squash(k) in sq for k in keys):
+                return kind
     return "other"
 
 
@@ -108,16 +123,16 @@ def notices_in_pdf(path, catalogue_date: str, gazette_no: str, pdf_url: str):
     matches = list(NOTICE_RE.finditer(full))
     seen: set[str] = set()
     for m, nxt in zip(matches, matches[1:] + [None]):
-        notice_no = m.group(1)
+        notice_no = re.sub(r"\s", "", m.group(1))
         if notice_no in seen:
             continue
         seen.add(notice_no)
         body = full[m.end(): nxt.start() if nxt else len(full)].strip()
-        head = body[:400].upper()
-        if not any(k in head for k in LAND_MARKERS):
+        head = body[:400]
+        if not is_land(head):
             continue
         act, title = heading_lines(body)
-        notice_type = classify(head)
+        notice_type = classify(head, title)
         parties = [_clean(p) for p in PARTY_RE.findall(body)]
         if notice_type == "succession":
             parties += [_clean(p) for p in ESTATE_RE.findall(body)]
