@@ -1,0 +1,129 @@
+# Demo cases and gates for the Land Title Due-Diligence Agent.
+# Run with: python eval/run_cases.py
+#
+# Each case sends an intake to POST /dossier and checks the Dossier that comes back.
+# Source IDs are full notice IDs, "{issue_date}:{notice_no}", as in
+# data/extracts/gazette_notices.parquet. Notice numbers repeat across years, so never
+# match on the number alone.
+#
+# Verdicts describe what the public record shows about a parcel, not about any person.
+# Seller names here are placeholders on purpose. Gazette notices contain real names,
+# ID numbers (ID/...) and registrar numbers (MR/...): mask ID and MR numbers in the
+# dossier UI and keep them out of the demo video.
+#
+# Absence of notices only covers the 2022-2024 Gazette extract.
+#
+# Claim kinds the agents should use (to agree with P2):
+#   serial_cancelled  title serial is in a cancelled range (cancelled_serials.csv)
+#   lost_title        lost / replacement title notice
+#   succession        transmission under a succession cause
+# These aren't always the parquet's notice_type: 12436 is notice_type lost_title, and
+# 7770 / 12777 are notice_type transfer.
+# Quotes must come from the notice's raw_text. The CSV writes ranges as "5253001--5253367"
+# but the Gazette text has an em dash, so a quote copied from the CSV fails gate C.
+
+cases:
+  - id: case-1
+    title: Cancelled title serial
+    intake:
+      parcel_input: Nairobi/Block 9/123          # synthetic registry row
+      title_serial: "5253012"                     # inside 5253001-5253367
+      seller_name: Placeholder Seller
+      sale_date: "2026-10-24"
+    expect:
+      verdict: STOP
+      min_confirmed: 1
+      cite_sources:
+        - {source_id: "2024-09-27:12436", kind: serial_cancelled}   # Loss of title deeds, gazetted 27 Sep 2024
+      trace_events: [verdict]
+      never_trace_events: [tool_call]             # STOP exits before any search
+      max_seconds: 2
+
+  - id: case-1b
+    title: Lost-title notices within 12 months, one objection window still open
+    intake:
+      parcel_input: N/Wanga/Matungu/954
+      title_serial: ""
+      seller_name: Placeholder Seller
+      sale_date: "2024-11-15"                     # 42 days after Notice 12679
+    expect:
+      verdict: STOP
+      min_confirmed: 1
+      cite_sources:
+        - {source_id: "2024-10-04:12679", kind: lost_title}
+      objection_windows:
+        - notice_id: "2024-10-04:12679"
+          closes_on: "2024-12-03"                 # 60 days from gazettement
+          open: true
+      trace_events: [tool_call, critic_accept, verdict]
+
+  - id: case-2
+    title: Two lost-title notices and one succession (gazetted twice) on record in 2024
+    intake:
+      parcel_input: N/Wanga/Matungu/954
+      title_serial: ""
+      seller_name: Placeholder Seller
+      sale_date: "2026-10-24"                     # both lost-title notices are over 12 months old
+    expect:
+      verdict: HIGH RISK
+      min_confirmed: 2
+      cite_sources:
+        - {source_id: "2024-05-17:5885", kind: lost_title}    # Issue of a new land title deed
+        - {source_id: "2024-10-04:12679", kind: lost_title}   # Issue of a replacement title
+      may_cite_sources:
+        - "2024-06-21:7770"                       # Registration of instrument, Succession Cause E102 of 2021
+        - "2024-10-04:12777"                      # Registration of instrument, same succession cause
+      quotes_contain:
+        - "registered under title No. N/Wanga/Matungu/954"
+      trace_events: [tool_call, delegate, critic_accept, verdict]
+
+  - id: case-3
+    title: No notices in the 2022-2024 extract
+    intake:
+      parcel_input: Kajiado/Kitengela/2830
+      title_serial: ""
+      seller_name: Placeholder Seller
+      sale_date: "2026-10-24"
+    expect:
+      verdict: VERIFY FIRST
+      max_confirmed: 0
+      remaining_checks: 4
+      trace_events: [tool_call, verdict]
+
+gates:
+  - id: gate-a
+    title: Near-identical neighbour is never matched
+    intake:
+      parcel_input: N/Wanga/Matungu/955           # neighbour of 954, which has 4 notices
+      title_serial: ""
+      seller_name: ""
+      sale_date: "2026-10-24"
+    expect:
+      verdict: VERIFY FIRST
+      max_confirmed: 0
+      never_cite_sources:
+        - "2024-05-17:5885"
+        - "2024-06-21:7770"
+        - "2024-10-04:12679"
+        - "2024-10-04:12777"
+      # if the investigator surfaces a 954 notice, the critic must reject it
+      critic_reject_if_any_claim: true
+
+  - id: gate-b
+    title: No banned words in any dossier text we write (verbatim quotes are excluded)
+    banned_words: ["safe", "clean", "clear title"]
+
+  - id: gate-c
+    title: Every confirmed Gazette quote is a non-empty verbatim substring of its source
+    # whitespace and ligatures (fi, fl) are normalised on both sides, nothing else
+    source_table: data/extracts/gazette_notices.parquet
+
+  - id: gate-d
+    title: Meterless engines pass their conformance suites
+    # needs vendor/meterless and Node (npx); use --skip-meterless to run without them
+    commands:
+      - cd vendor/meterless/world-model/reference && npx tsx ../conformance/runner.ts
+      - cd vendor/meterless/hmem/reference && npx tsx ../conformance/runner.ts
+
+# Not used as a demo case until the extraction fix lands: Kajiado/Kitengela/2829 is
+# currently attributed to Notice 8390, because 8390's raw_text runs on into 8391-8399.
