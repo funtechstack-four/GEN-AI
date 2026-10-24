@@ -73,7 +73,7 @@ def test_read_masthead(head, expected):
     assert read_masthead(head) == expected
 
 
-from extract_notices import NOTICE_RE, is_land  # noqa: E402
+from extract_notices import ESTATE_RE, NOTICE_RE, WITHIN_DAYS_RE, is_land, petitioners  # noqa: E402
 
 
 @pytest.mark.parametrize("text, number", [
@@ -100,3 +100,39 @@ def test_transfer_citing_succession_cause_is_transfer():
 
 def test_acquired_in_text_is_not_acquisition():
     assert classify("THE LAND REGISTRATION ACT\nWHEREAS the land was acquired by purchase") == "other"
+
+
+# Wording from Gazette 2024-03-25 No. 36, notices 3480 and 3485.
+PROBATE = ("IN THE HIGH COURT OF KENYA AT NAKURU \nPROBATE AND ADMINISTRATION \nTAKE NOTICE that applications "
+           "having been made in this court \nin: \nCAUSE NO. E150 OF 2023 \nBy (1) Justine Rutto and (2) James "
+           "Kiprotich Ruto, both of P.O. \nBox 315221-20100, Nakuru in Kenya, for a grant of letters of \n"
+           "administration intestate to the estate of Livingstone Kipkoech Ruto, \nwho died at Nairobi Women's "
+           "Hospital in Kenya, on 22nd April, \n2023. \nCAUSE NO. E907 OF 2021 \nBy Heinrich Hellen Barchet, of "
+           "Seelacher Weg, 95, 71522, \nBacknang, Germany, through Messrs. Albert Kamunde & Co., for a grant "
+           "to the estate of \nMercy Njoki Mwangi Barchet, late of Murang'a, who died on 6th May, 2018. \n"
+           "The Court will proceed to issue the same unless cause be shown to \nthe contrary and appearance in "
+           "this respect entered within thirty (30) \ndays from the date of publication of this notice")
+
+
+def test_probate_notice_is_kept_as_succession():
+    assert is_land(PROBATE)
+    assert classify(PROBATE, "IN THE HIGH COURT OF KENYA AT NAKURU") == "succession"
+
+
+def test_probate_petitioners_and_days():
+    assert petitioners(PROBATE) == ["Justine Rutto", "James Kiprotich Ruto", "Heinrich Hellen Barchet"]
+    assert ESTATE_RE.findall(PROBATE)[0].strip() == "Livingstone Kipkoech Ruto"
+    assert int(WITHIN_DAYS_RE.search(PROBATE).group(1)) == 30
+
+
+def test_land_notice_keeps_plain_id_on_ocr_clash():
+    from extract_notices import make_ids_unique
+    rows = [{"notice_id": "2023-07-28:9889", "gazette_no": "172", "notice_type": "succession"},
+            {"notice_id": "2023-07-28:9889", "gazette_no": "170", "notice_type": "other"}]
+    make_ids_unique(rows)
+    assert [r["notice_id"] for r in rows] == ["2023-07-28:9889/172", "2023-07-28:9889"]
+
+
+def test_petitioner_through_advocates():
+    text = "CAUSE NO. E1887 OF 2021 \nBy Beatrice Kainda Mwongera, the deceased's widow, through Messrs. X"
+    assert petitioners(text) == ["Beatrice Kainda Mwongera"]

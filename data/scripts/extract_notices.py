@@ -23,15 +23,19 @@ from verify_pdfs import read_masthead
 # Scanned issues OCR with spaces inside words: "G a zet t e N o t ice N o . 799 2".
 NOTICE_RE = re.compile(r"G\s?A\s?Z\s?E\s?T\s?T\s?E\s+N\s?O\s?T\s?I\s?C\s?E\s*\.?\s*N\s?[O0]\s?\.?\s*(\d(?:\s?\d){2,4})", re.I)
 
-# A notice is "land" when its heading names one of these.
+# A notice is "land" when its heading names one of these. Probate petitions aren't land notices,
+# but we keep them so seller names can be matched against estates of deceased owners.
 LAND_MARKERS = (
     "LAND REGISTRATION ACT", "REGISTERED LAND ACT", "REGISTRATION OF TITLES ACT",
     "LAND TITLES ACT", "GOVERNMENT LANDS ACT", "SECTIONAL PROPERTIES ACT",
     "THE LAND ACT", "NATIONAL LAND COMMISSION", "SUCCESSION CAUSE", "LOSS OF TITLE DEEDS",
+    "PROBATE AND ADMINISTRATION",
 )
 # Checked against the notice title first, then the opening text; first match wins.
 # Transfer comes before succession: transfer notices often cite "Succession Cause No. ...".
+# Probate comes first of all: that heading is only ever used for petitions for a grant.
 TYPE_RULES = (
+    ("succession", ("PROBATE AND ADMINISTRATION",)),
     ("lost_title", ("ISSUE OF A NEW", "ISSUE OF NEW", "ISSUE OF A PROVISIONAL", "ISSUE OF A REPLACEMENT",
                     "ISSUE OF REPLACEMENT", "ISSUE OF A CERTIFICATE", "LOSS OF", "PROVISIONAL CERTIFICATE")),
     ("transfer", ("REGISTRATION OF INSTRUMENT", "TRANSMISSION", "TRANSFER")),
@@ -68,9 +72,25 @@ PARTY_RE = re.compile(
 )
 ESTATE_RE = re.compile(r"estate of\s+(?:the\s+late\s+)?(.{3,80}?)(?:,|\s+(?:late of|who died|deceased))", re.S | re.I)
 DAYS_RE = re.compile(r"expiration of\s+(?:[a-z\-\s]+?)?\(?(\d{1,3})\)?\s*days", re.I)
+# Probate: "... entered within thirty (30) days from the date of publication".
+WITHIN_DAYS_RE = re.compile(r"within\s+(?:[a-z\-\s]+?)?\(?(\d{1,3})\)?\s*days", re.I)
+# "CAUSE NO. E150 OF 2023 By (1) Justine Rutto and (2) James Kiprotich Ruto, both of P.O. ..."
+PETITIONER_RE = re.compile(
+    r"CAUSE\s+NO\.?\s*[\w/]+\s+OF\s+\d{4}\s+By\s+(.{3,250}?)"
+    r"(?=,\s*(?:both\s+|all\s+)?(?:of|c/o)\s|,\s*the\s+deceased|,\s*through\s)",
+    re.S | re.I,
+)
 DATED_RE = re.compile(r"Dated\s+(?:the\s+)?(\d{1,2}(?:st|nd|rd|th)?\s+\w+,?\s+\d{4})")
 
 log = get_logger("extract_notices")
+
+
+def petitioners(body: str) -> list[str]:
+    names = []
+    for group in PETITIONER_RE.findall(body):
+        parts = re.split(r"\(\d+\)", group) if "(1)" in group else [group]
+        names += [_clean(re.sub(r"^\s*and\s+|\s+and\s*$", "", p)) for p in parts]
+    return [n for n in names if n]
 
 
 def _clean(s: str) -> str:
@@ -135,8 +155,8 @@ def notices_in_pdf(path, catalogue_date: str, gazette_no: str, pdf_url: str):
         notice_type = classify(head, title)
         parties = [_clean(p) for p in PARTY_RE.findall(body)]
         if notice_type == "succession":
-            parties += [_clean(p) for p in ESTATE_RE.findall(body)]
-        days = DAYS_RE.search(body)
+            parties += [_clean(p) for p in ESTATE_RE.findall(body)] + petitioners(body)
+        days = DAYS_RE.search(body) or (WITHIN_DAYS_RE.search(body) if notice_type == "succession" else None)
         dated = DATED_RE.search(body)
         page = page_of(m.start())
         yield {
@@ -157,6 +177,18 @@ def notices_in_pdf(path, catalogue_date: str, gazette_no: str, pdf_url: str):
             "source_url": f"{pdf_url}#page={page}",
             "extractor": "rules-v1",
         }
+
+
+def make_ids_unique(rows: list[dict]) -> None:
+    """Scanned probate issues sometimes OCR a notice number that a land notice in another issue of
+    the same day already uses. The land notice keeps the plain ID; the other gets "/{gazette_no}"."""
+    by_id = collections.defaultdict(list)
+    for r in rows:
+        by_id[r["notice_id"]].append(r)
+    for same in by_id.values():
+        same.sort(key=lambda r: r["notice_type"] == "succession")
+        for r in same[1:]:
+            r["notice_id"] += f"/{r['gazette_no']}"
 
 
 SCHEMA = pa.schema([
@@ -199,6 +231,7 @@ def main() -> None:
         rows += found
         log.info("%s no.%s: %d land notices", issue_date, gazette_no, len(found))
 
+    make_ids_unique(rows)
     EXTRACTS.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.Table.from_pylist(rows, schema=SCHEMA), NOTICES_PARQUET, compression="zstd")
 
