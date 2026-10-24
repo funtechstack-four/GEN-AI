@@ -22,6 +22,12 @@ export function isCancelledSerial(serial: string): boolean {
   return Number.isInteger(n) && n >= CANCELLED_FROM && n <= CANCELLED_TO;
 }
 
+// "LR 12715/288", "L.R. No. 12715/288" or "12715/288", and nothing else
+export function isDemoHighRiskParcel(input: string): boolean {
+  const s = input.toUpperCase().replace(/[\s.]/g, "").replace(/^LR(NO)?/, "");
+  return s === "12715/288";
+}
+
 export function mockDossier(req: IntakeRequest): Dossier {
   const base = {
     run_id: runId(),
@@ -53,8 +59,8 @@ export function mockDossier(req: IntakeRequest): Dossier {
   }
 
   // Case 2: the demo HIGH RISK parcel (placeholder until P4 anchors a real one)
-  // whole number only: 12715/2880, 112715/288 or 12715/288/1 is a different parcel
-  if (/(?<!\d)12715\/288(?![\d/A-Za-z])/.test(req.parcel_input.replace(/\s/g, ""))) {
+  // whole identifier only: 12715/2880, 9/12715/288 or ABC12715/288 is a different parcel
+  if (isDemoHighRiskParcel(req.parcel_input)) {
     return {
       ...base,
       verdict: "HIGH RISK",
