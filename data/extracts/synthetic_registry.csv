@@ -1,0 +1,32 @@
+parcel_id,parcel_input,district,title_serial,registered_owner,tenure,area_ha,registered_on,encumbrance,synthetic,note
+RL:NAIROBI/BLOCK 9/123,Nairobi/Block 9/123,Nairobi,5253012,Achieng Demoyo,Freehold,1.773,2021-06-24,Charge to (fictional) Demo Bank,true,serial in cancelled range 5253001-5253367 (case 1)
+RL:N/WANGA/MATUNGU/954,N/Wanga/Matungu/954,Kakamega,5375047,Jepkosgei Placeholder,Leasehold (99 yrs),0.51,2021-10-10,,true,has 2024 Gazette notices (cases 1b and 2)
+RL:N/WANGA/MATUNGU/955,N/Wanga/Matungu/955,Kakamega,5314514,Wambui Testowner,Leasehold (99 yrs),0.063,2023-05-14,Charge to (fictional) Demo Bank,true,"neighbour of 954, no notices (gate A)"
+RL:KAJIADO/KITENGELA/2830,Kajiado/Kitengela/2830,Kajiado,5389048,Ochieng Sampleson,Leasehold (99 yrs),0.533,2015-12-31,Charge to (fictional) Demo Bank,true,no notices in 2022-2024 (case 3)
+LR:12715/288,LR 12715/288,Nairobi,5397775,Kamau Mockery,Leasehold (99 yrs),0.216,2020-01-25,,true,"near-identical neighbour of 12715/289 (web mock, gate A)"
+LR:12715/289,LR 12715/289,Nairobi,5337696,Omondi Sampleson,Leasehold (99 yrs),0.088,2023-12-11,,true,"near-identical neighbour of 12715/288 (web mock, gate A)"
+RL:NAIROBI/BLOCK 9/6056,Nairobi/Block 9/6056,Nairobi,5360433,Nyambura Testowner,Leasehold (99 yrs),1.786,2020-06-08,Charge to (fictional) Demo Bank,true,
+RL:NAIROBI/BLOCK 9/2007,Nairobi/Block 9/2007,Nairobi,5355763,Jepkosgei Fakerson,Leasehold (99 yrs),1.695,2020-08-25,Charge to (fictional) Demo Bank,true,
+RL:NAIROBI/BLOCK 9/8504,Nairobi/Block 9/8504,Nairobi,5367893,Wanjiru Placeholder,Freehold,1.541,2009-02-04,,true,
+RL:NAIROBI/BLOCK 9/7135,Nairobi/Block 9/7135,Nairobi,5361609,Mutua Fakerson,Freehold,1.705,2010-09-26,Charge to (fictional) Demo Bank,true,
+RL:NAIROBI/BLOCK 9/7790,Nairobi/Block 9/7790,Nairobi,5393653,Kiprop Placeholder,Leasehold (99 yrs),1.353,2014-11-25,Charge to (fictional) Demo Bank,true,
+RL:KAJIADO/KITENGELA/6685,Kajiado/Kitengela/6685,Kajiado,5356762,Njoroge Demoyo,Leasehold (99 yrs),0.058,2011-05-12,Charge to (fictional) Demo Bank,true,
+RL:KAJIADO/KITENGELA/8667,Kajiado/Kitengela/8667,Kajiado,5364162,Muthoni Sampleson,Leasehold (99 yrs),1.398,2018-06-19,Charge to (fictional) Demo Bank,true,
+RL:KAJIADO/KITENGELA/7214,Kajiado/Kitengela/7214,Kajiado,5373116,Otieno Demoyo,Leasehold (99 yrs),0.937,2010-03-16,Charge to (fictional) Demo Bank,true,
+RL:KAJIADO/KITENGELA/8540,Kajiado/Kitengela/8540,Kajiado,5333925,Omondi Sampleson,Leasehold (99 yrs),1.691,2018-09-30,,true,
+RL:KAJIADO/KITENGELA/4465,Kajiado/Kitengela/4465,Kajiado,5365329,Muthoni Testowner,Freehold,1.505,2017-03-23,,true,
+RL:KIAMBU/RUIRUEAST/7462,Kiambu/Ruiru East/7462,Kiambu,5301839,Kamau Testowner,Leasehold (99 yrs),1.178,2009-11-11,,true,
+RL:KIAMBU/RUIRUEAST/4160,Kiambu/Ruiru East/4160,Kiambu,5315835,Otieno Placeholder,Leasehold (99 yrs),1.35,2022-04-02,,true,
+RL:KIAMBU/RUIRUEAST/2635,Kiambu/Ruiru East/2635,Kiambu,5300672,Ochieng Mockery,Leasehold (99 yrs),1.392,2011-01-09,,true,
+RL:KIAMBU/RUIRUEAST/7849,Kiambu/Ruiru East/7849,Kiambu,5377061,Mutua Placeholder,Leasehold (99 yrs),0.205,2022-12-29,,true,
+RL:KIAMBU/RUIRUEAST/2317,Kiambu/Ruiru East/2317,Kiambu,5376812,Wambui Placeholder,Leasehold (99 yrs),0.805,2011-05-01,,true,
+RL:NAKURU/MUNICIPALITY/BLOCK 4/6260,Nakuru/Municipality Block 4/6260,Nakuru,5301852,Achieng Fakerson,Freehold,0.141,2015-10-13,,true,
+RL:NAKURU/MUNICIPALITY/BLOCK 4/522,Nakuru/Municipality Block 4/522,Nakuru,5303353,Jepkosgei Demoyo,Leasehold (99 yrs),0.922,2010-09-21,Charge to (fictional) Demo Bank,true,
+RL:NAKURU/MUNICIPALITY/BLOCK 4/7744,Nakuru/Municipality Block 4/7744,Nakuru,5374923,Chebet Sampleson,Freehold,0.89,2015-07-18,Charge to (fictional) Demo Bank,true,
+RL:NAKURU/MUNICIPALITY/BLOCK 4/9901,Nakuru/Municipality Block 4/9901,Nakuru,5330582,Kamau Placeholder,Leasehold (99 yrs),0.107,2022-07-08,,true,
+RL:NAKURU/MUNICIPALITY/BLOCK 4/841,Nakuru/Municipality Block 4/841,Nakuru,5384964,Otieno Fakerson,Freehold,0.988,2023-03-22,,true,
+RL:MACHAKOS/MAVOKO/2215,Machakos/Mavoko/2215,Machakos,5384626,Njoroge Placeholder,Freehold,0.354,2012-03-03,Charge to (fictional) Demo Bank,true,
+RL:MACHAKOS/MAVOKO/4569,Machakos/Mavoko/4569,Machakos,5355752,Nyambura Testowner,Leasehold (99 yrs),0.638,2015-09-19,,true,
+RL:MACHAKOS/MAVOKO/4416,Machakos/Mavoko/4416,Machakos,5360806,Jepkosgei Fakerson,Leasehold (99 yrs),0.957,2015-04-22,Charge to (fictional) Demo Bank,true,
+RL:MACHAKOS/MAVOKO/7384,Machakos/Mavoko/7384,Machakos,5315742,Kiprop Testowner,Freehold,0.493,2010-02-01,Charge to (fictional) Demo Bank,true,
+RL:MACHAKOS/MAVOKO/5513,Machakos/Mavoko/5513,Machakos,5353477,Chebet Testowner,Leasehold (99 yrs),1.699,2015-11-21,,true,
