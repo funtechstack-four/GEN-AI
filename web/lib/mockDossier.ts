@@ -40,10 +40,11 @@ export function mockDossier(req: IntakeRequest): Dossier {
         claim_id: "c1",
         kind: "serial_cancelled",
         parcel_id: req.parcel_input,
-        // same quote and source as data/extracts/cancelled_serials.csv
-        quote: "5253001--5253367",
-        source_type: "serial_list",
-        source_id: "Gazette Notice 12436, Vol. CXXVI No. 147, 27 Sep 2024 (Loss of title deeds: reported lost, deemed cancelled)",
+        // verbatim from the notice's raw_text (em dash; the CSV writes "--"), and the
+        // full notice ID, since notice numbers repeat across years (2023-09-15:12436 too)
+        quote: "5253001—5253367",
+        source_type: "gazette",
+        source_id: "2024-09-27:12436",
         status: "confirmed",
         reject_reason: null,
       }],
@@ -52,7 +53,8 @@ export function mockDossier(req: IntakeRequest): Dossier {
   }
 
   // Case 2: the demo HIGH RISK parcel (placeholder until P4 anchors a real one)
-  if (req.parcel_input.replace(/\s/g, "").toUpperCase().includes("12715/288")) {
+  // whole number only: 12715/2880, 112715/288 or 12715/288/1 is a different parcel
+  if (/(?<!\d)12715\/288(?![\d/A-Za-z])/.test(req.parcel_input.replace(/\s/g, ""))) {
     return {
       ...base,
       verdict: "HIGH RISK",
