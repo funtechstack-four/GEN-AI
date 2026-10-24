@@ -49,7 +49,7 @@ The PDFs themselves aren't committed. The scripts in `data/scripts/` download th
 
 Each sponsor tool has one job:
 
-- **Zetaris** holds the four tables (Parquet and CSV files in the S3 bucket `tfts-land-extracts`, database `land_files`) behind one SQL view, plus a data-quality rule that flags notices whose parcel isn't in the registry.
+- **Zetaris** holds the four tables (Parquet and CSV files in the S3 bucket `tfts-land-extracts-361738333327-eu-north-1-an`, database `land_files`) behind one SQL view, plus a data-quality rule that flags notices whose parcel isn't in the registry.
 - **Meterless** World Model keeps the graph of parcels, people, notices and cases. H-MEM remembers patterns across dossiers, such as one person named in three or more lost-title notices.
 - **Meterless Nightshift** runs on the laptop and is the only AI provider the app talks to. It holds the NVIDIA key and passes calls on to **NVIDIA Nemotron**, which classifies notices and pulls out names and parcels.
 
@@ -96,11 +96,11 @@ python data/scripts/extract_notices.py   # split into notices, keep the land one
 
 ### Loading it into Zetaris
 
-Upload the extract to `s3://tfts-land-extracts/`, then run each statement on its own (no trailing semicolon):
+Upload the extract to `s3://tfts-land-extracts-361738333327-eu-north-1-an/`, then run each statement on its own (no trailing semicolon):
 
 ```sql
 CREATE LIGHTNING FILESTORE TABLE gazette_notices FROM land_files FORMAT PARQUET OPTIONS (
-  path "s3a://tfts-land-extracts/gazette_notices.parquet",
+  path "s3a://tfts-land-extracts-361738333327-eu-north-1-an/gazette_notices.parquet",
   isS3BucketPublic "true"
 )
 ```
