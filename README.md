@@ -43,15 +43,15 @@ The PDFs themselves aren't committed. The scripts in `data/scripts/` download th
    │      Zetaris REST (:8888) ◀─┘       Meterless bridge (:4001, Node + tsx)
    │      one SQL view over 4 tables     World Model (graph) + H-MEM (patterns)
    │            ▲
-   └─ STOP early exit if serial in range        NVIDIA NIM Nemotron (extraction, classification)
+   └─ STOP early exit if serial in range        Meterless Nightshift (:8088) → NVIDIA Nemotron
                                                  └─ recorded responses for SAMPLE_MODE
 ```
 
 Each sponsor tool has one job:
 
-- **Zetaris** holds the four tables (Parquet and CSV files in the S3 bucket `tfts-land-extracts`, database `land_files`) behind one SQL view, plus a data-quality rule that flags notices whose parcel isn't in the registry.
+- **Zetaris** holds the four tables (Parquet and CSV files in the S3 bucket `tfts-land-extracts-361738333327-eu-north-1-an`, database `land_files`) behind one SQL view, plus a data-quality rule that flags notices whose parcel isn't in the registry.
 - **Meterless** World Model keeps the graph of parcels, people, notices and cases. H-MEM remembers patterns across dossiers, such as one person named in three or more lost-title notices.
-- **NVIDIA Nemotron**, through the hosted NIM API, classifies notices and pulls out names and parcels.
+- **Meterless Nightshift** runs on the laptop and is the only AI provider the app talks to. It holds the NVIDIA key and passes calls on to **NVIDIA Nemotron**, which classifies notices and pulls out names and parcels.
 
 ## Repo layout
 
@@ -81,7 +81,7 @@ cp .env.example .env            # then fill in your own keys
 pytest tests
 ```
 
-`.env.example` lists every setting. Leave `SAMPLE_MODE=true` to run on recorded responses with no keys and no network. Set it to `false` and fill in `MODEL_API_KEY`, `ZETARIS_REST_URL` and `ZETARIS_API_KEY` to run live. Never commit `.env`.
+`.env.example` lists every setting. Leave `SAMPLE_MODE=true` to run on recorded responses with no keys and no network. Set it to `false` and fill in `METERLESS_RUNTIME_TOKEN` (from Nightshift), `ZETARIS_REST_URL` and `ZETARIS_API_KEY` to run live. Nightshift has to be running, with your NVIDIA key added in its Providers tab. Never commit `.env`.
 
 ### Rebuilding the Gazette data
 
@@ -96,11 +96,11 @@ python data/scripts/extract_notices.py   # split into notices, keep the land one
 
 ### Loading it into Zetaris
 
-Upload the extract to `s3://tfts-land-extracts/`, then run each statement on its own (no trailing semicolon):
+Upload the extract to `s3://tfts-land-extracts-361738333327-eu-north-1-an/`, then run each statement on its own (no trailing semicolon):
 
 ```sql
 CREATE LIGHTNING FILESTORE TABLE gazette_notices FROM land_files FORMAT PARQUET OPTIONS (
-  path "s3a://tfts-land-extracts/gazette_notices.parquet",
+  path "s3a://tfts-land-extracts-361738333327-eu-north-1-an/gazette_notices.parquet",
   isS3BucketPublic "true"
 )
 ```
