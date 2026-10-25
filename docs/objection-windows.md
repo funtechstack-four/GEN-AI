@@ -42,25 +42,33 @@ It's a summary for building the demo, not legal advice.
 1. **Use the period written in the notice.** The parquet already has it in
    `objection_days` (60 for most lost titles, 30 for most transfers; 14 and 90 also
    appear). Don't assume 60 for everything.
-2. **Count from the date on the notice ("from the date hereof"),** which is the
-   `notice_dated` field (free text like "4th October, 2024"). This can be a day or
-   two before the Gazette issue date: 12436 is dated 26 Sep 2024 but gazetted 27 Sep.
-3. **If `notice_dated` is missing (543 notices), can't be parsed (9), or comes
-   after `issue_date` (117, almost certainly OCR), use `issue_date`,** and say the
-   date is approximate.
-4. **If `objection_days` is missing, don't show a closing date.** Say the notice
+2. **Count from the Gazette publication date, `issue_date`.** s.33(3) runs the 60 days
+   "from the date of publication in the Gazette or circulation of such newspapers;
+   whichever is first", and s.67 counts "from the date of publication". The notices say
+   "from the date hereof", but `notice_dated` is when the Registrar signed it, not when
+   it was published (12436 is dated 26 Sep 2024 but gazetted 27 Sep), and it's missing
+   or garbled in a few hundred rows. So use `issue_date` for every notice type.
+3. **Don't count the publication day itself** (Interpretation and General Provisions
+   Act, Cap. 2, s.57(a)). So `closes_on = issue_date + objection_days`: day 1 is the day
+   after publication.
+4. **If `closes_on` lands on a Sunday or a public holiday, move it to the next day that
+   isn't** (s.57(b)). Sundays are easy; for public holidays use a fixed list of the
+   holidays in the Public Holidays Act, and say the date may move if there was an extra
+   gazetted holiday. s.57(b) also excludes "official non-working days"; we don't treat
+   Saturdays as excluded, so that's another reason for the Registrar to confirm.
+5. **If `objection_days` is missing, don't show a closing date.** Say the notice
    didn't state a period and add it to the advocate review list.
-5. `closes_on = notice date + objection_days`, and the window is open if the sale
-   date is on or before `closes_on`.
+6. The window is open if the sale date is on or before `closes_on`.
 
-Worked example (case 1b): 12679 is dated 4 Oct 2024, 60 days → closes 3 Dec 2024.
-A sale on 15 Nov 2024 is inside the window.
+Worked example (case 1b): 12679 was gazetted on 4 Oct 2024, 60 days, day 1 is 5 Oct,
+so it closes on 3 Dec 2024 (a Tuesday, so it doesn't move). A sale on 15 Nov 2024 is
+inside the window.
 
 ## What to tell the user
 
-- Under s.33(3) the 60 days can also start from the newspaper notice if that came
-  out first, and we only see the Gazette. So the closing date is "based on the
-  Gazette notice", and the Registrar is the one to confirm it.
+- We only see the Gazette. Under s.33(3) the 60 days can start from the newspaper notice
+  if that came out first, so the real window may close a few days earlier. Say the date
+  is "based on the Gazette notice" and that the Registrar is the one to confirm it.
 - An open window means someone can still object; a closed one doesn't mean nobody
   did. Either way the buyer still needs an official search.
 
@@ -72,6 +80,8 @@ A sale on 15 Nov 2024 is inside the window.
 - Law of Succession Act, Cap. 160, ss.67–68, as quoted in *In re Estate of Quintus
   Ekessa (Deceased)* [2021] KEHC 1806 (KLR):
   https://new.kenyalaw.org/akn/ke/judgment/kehc/2021/1806/eng@2021-12-01
+- Interpretation and General Provisions Act, Cap. 2, s.57 (computation of time), Kenya Law
+  version revised to 31 Dec 2022: https://new.kenyalaw.org/akn/ke/act/1956/38/eng@2022-12-31
 - Notice wording and counts: `data/extracts/gazette_notices.parquet`
   (fields `objection_days`, `notice_dated`, `issue_date`). Counts are from the
   19,360-notice extract, before the probate notices in #23.
