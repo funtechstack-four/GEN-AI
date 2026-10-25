@@ -24,7 +24,8 @@ export function isCancelledSerial(serial: string): boolean {
 
 // "LR 12715/288", "L.R. No. 12715/288" or "12715/288", and nothing else
 export function isDemoHighRiskParcel(input: string): boolean {
-  const s = input.toUpperCase().replace(/[\s.]/g, "").replace(/^LR(NO)?/, "");
+  // dots are only dropped in the "L.R. No." prefix, so 12715/28.8 stays a different parcel
+  const s = input.toUpperCase().replace(/\s/g, "").replace(/^L\.?R\.?(NO\.?)?/, "");
   return s === "12715/288";
 }
 
