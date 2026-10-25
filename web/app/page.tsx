@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { requestDossier } from "@/lib/api";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => new Date().toLocaleDateString("en-CA"); // local date, YYYY-MM-DD
 
 export default function IntakePage() {
   const router = useRouter();
@@ -24,7 +24,8 @@ export default function IntakePage() {
       sale_date: saleDate || today(),
     });
     try {
-      sessionStorage.setItem("dossier", JSON.stringify(result));
+      // the sale date goes with it so the dossier page can say whether windows were open then
+      sessionStorage.setItem("dossier", JSON.stringify({ ...result, saleDate: saleDate || today() }));
     } catch {
       // private window etc. The dossier page will say nothing was found.
     }

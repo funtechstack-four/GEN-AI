@@ -1,6 +1,7 @@
 // A stand-in for the real agent while the backend isn't ready.
 // It only knows the three demo shapes. Nothing here is a real check.
 import type { Dossier, IntakeRequest } from "./contracts";
+import { is954, mock954 } from "./mock954";
 
 const CANCELLED_FROM = 5253001;
 const CANCELLED_TO = 5253367;
@@ -30,6 +31,11 @@ export function mockDossier(req: IntakeRequest): Dossier {
     objection_windows: [],
     advocate_review: [],
   };
+
+  // Cases 1b and 2: the real demo parcel, verdict depends on the sale date
+  if (!isCancelledSerial(req.title_serial) && is954(req.parcel_input)) {
+    return mock954(req, base, REMAINING_CHECKS);
+  }
 
   // Case 1: title paper serial is in the cancelled range -> STOP straight away
   if (isCancelledSerial(req.title_serial)) {

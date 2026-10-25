@@ -117,3 +117,37 @@ button:disabled { opacity: 0.6; cursor: default; }
   font-style: italic;
 }
 .reject { color: var(--stop); }
+
+.fine-tight { color: var(--muted); font-size: 0.9rem; margin: 4px 0 10px; }
+
+.windows { list-style: none; padding: 0; display: grid; gap: 10px; }
+.window {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.window small { color: var(--muted); }
+.window-chip {
+  flex: none;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+/* break at the <wbr> after each slash first; only split a number if it still doesn't fit */
+.parcel-title { overflow-wrap: break-word; word-break: normal; }
+@media (max-width: 480px) {
+  .window { flex-direction: column; gap: 6px; }
+}
+.w-open { border-left-color: var(--high); }
+.w-open .window-chip { color: var(--high); background: var(--high-bg); }
+.w-closed, .w-later { border-left-color: var(--border); }
+.w-closed .window-chip, .w-later .window-chip { color: var(--muted); }
