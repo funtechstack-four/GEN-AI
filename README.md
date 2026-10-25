@@ -24,8 +24,8 @@ A flag only counts as "confirmed" when the Evidence Critic has found its quote w
 |---|---|---|
 | Kenya Gazette, 2022 to 2024 (659 issues from [Kenya Law](https://kenyalaw.org/gazettes/)) | 19,360 land notices: lost titles, transfers, compulsory acquisitions and more | `data/extracts/gazette_notices.parquet` |
 | Gazette Notice 12436 (27 Sep 2024) | The 367 title serials reported lost and cancelled | `data/extracts/cancelled_serials.csv` |
-| Environment and Land Court judgments | 10 to 20 hand-picked cases | `data/extracts/judgments.csv` (coming) |
-| Synthetic registry | Stand-in for an Ardhisasa search. Every row is marked `synthetic=true` | `data/extracts/synthetic_registry.csv` (coming) |
+| Environment and Land Court judgments, 2022 to 2026 ([Kenya Law](https://new.kenyalaw.org), CC BY-NC 4.0) | 14 hand-picked cases on lost-title notices, duplicate titles and title fraud, each with a verbatim excerpt | `data/extracts/judgments.csv` |
+| Synthetic registry | Stand-in for an Ardhisasa search. Every row is marked `synthetic=true` | `data/extracts/synthetic_registry.csv` |
 
 The PDFs themselves aren't committed. The scripts in `data/scripts/` download them again and rebuild the extracts (see below).
 
