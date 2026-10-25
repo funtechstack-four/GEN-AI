@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Claim, Dossier, Verdict } from "@/lib/contracts";
+import { describeWindow, formatDate, hasIds, maskIds, noticeLabel } from "@/lib/format";
 
 // Icon + word + colour, so the verdict never depends on colour alone.
 const VERDICT_INFO: Record<Verdict, { icon: string; css: string; meaning: string }> = {
@@ -34,15 +35,23 @@ function ClaimItem({ c }: { c: Claim }) {
   return (
     <li className="claim">
       <strong>{KIND_LABEL[c.kind]}</strong> · {c.parcel_id}
-      <blockquote>“{c.quote}”</blockquote>
-      <small>Source: {c.source_id}</small>
-      {c.reject_reason && <small className="reject"> · Not counted: {c.reject_reason}</small>}
+      <blockquote>“{maskIds(c.quote)}”</blockquote>
+      <small>Source: {c.source_type === "gazette" ? noticeLabel(c.source_id) : maskIds(c.source_id)}</small>
+      {c.reject_reason && <small className="reject"> · Not counted: {maskIds(c.reject_reason)}</small>}
     </li>
   );
 }
 
+const todayIso = () => new Date().toLocaleDateString("en-CA"); // local date, YYYY-MM-DD
+
+// Let long parcel numbers wrap after a slash instead of in the middle of a number.
+function Breakable({ text }: { text: string }) {
+  const parts = text.split("/");
+  return <>{parts.map((p, i) => <span key={i}>{p}{i < parts.length - 1 && <>/<wbr /></>}</span>)}</>;
+}
+
 export default function DossierPage() {
-  const [data, setData] = useState<{ dossier: Dossier; fromMock: boolean } | null>(null);
+  const [data, setData] = useState<{ dossier: Dossier; fromMock: boolean; saleDate?: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -65,8 +74,11 @@ export default function DossierPage() {
     );
   }
 
-  const { dossier: d, fromMock } = data;
+  const { dossier: d, fromMock, saleDate } = data;
   const v = VERDICT_INFO[d.verdict];
+  const today = todayIso();
+  const masked = [...d.timeline, ...d.unverified].some((c) => hasIds(c.quote) || hasIds(c.source_id) || hasIds(c.reject_reason ?? ""))
+    || d.advocate_review.some(hasIds);
 
   return (
     <main className="container">
@@ -78,7 +90,7 @@ export default function DossierPage() {
         </p>
       )}
 
-      <h1>{d.parcel_input}</h1>
+      <h1 className="parcel-title"><Breakable text={d.parcel_input} /></h1>
 
       <section className={`verdict ${v.css}`} aria-label="Verdict">
         <span className="verdict-icon" aria-hidden="true">{v.icon}</span>
@@ -98,13 +110,33 @@ export default function DossierPage() {
       {d.objection_windows.length > 0 && (
         <section>
           <h2>Objection windows</h2>
-          <ul>
-            {d.objection_windows.map((w) => (
-              <li key={w.notice_id}>
-                Notice {w.notice_id}: {w.open ? "open until" : "closed on"} {w.closes_on}
-              </li>
-            ))}
+          <p className="fine-tight">
+            While a window is open, anyone can still object to the notice. Buying during one
+            means buying into whatever the objection turns out to be.
+          </p>
+          <ul className="windows">
+            {d.objection_windows.map((w) => {
+              const view = describeWindow(w, today, saleDate);
+              return (
+                <li key={w.notice_id} className={`window w-${view.status}`}>
+                  <span className="window-chip">
+                    <span aria-hidden="true">{view.status === "open" ? "⏳" : view.status === "later" ? "📅" : "🔒"}</span>{" "}
+                    {view.chip}
+                  </span>
+                  <div>
+                    <strong>{noticeLabel(w.notice_id)}</strong>
+                    <div>{view.headline}</div>
+                    <small>{view.detail}</small>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
+          <p className="fine-tight">
+            Dates are worked out from the Gazette notice and move to the next day if they land
+            on a Sunday or public holiday. If the newspaper notice came out first the
+            window may close a few days earlier, so the Land Registrar should confirm it.
+          </p>
         </section>
       )}
 
@@ -118,7 +150,7 @@ export default function DossierPage() {
       {d.advocate_review.length > 0 && (
         <section>
           <h2>For your advocate to review</h2>
-          <ul>{d.advocate_review.map((a) => <li key={a}>{a}</li>)}</ul>
+          <ul>{d.advocate_review.map((a) => <li key={a}>{maskIds(a)}</li>)}</ul>
         </section>
       )}
 
@@ -127,7 +159,10 @@ export default function DossierPage() {
         <ol>{d.remaining_checks.map((c) => <li key={c}>{c}</li>)}</ol>
       </section>
 
-      <p className="fine">Run ID: {d.run_id}</p>
+      {masked && <p className="fine">ID and registrar numbers from the notices are hidden on this page.</p>}
+      <p className="fine">
+        {saleDate && <>Checked for a sale on {formatDate(saleDate)} · </>}Run ID: {d.run_id}
+      </p>
     </main>
   );
 }
