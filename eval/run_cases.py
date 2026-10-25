@@ -64,8 +64,10 @@ def check_case(dossier: dict, expect: dict, events: set[str]) -> list[str]:
         fails.append(f"{len(confirmed)} confirmed claims, expected at least {expect['min_confirmed']}")
     if "max_confirmed" in expect and len(confirmed) > expect["max_confirmed"]:
         fails.append(f"{len(confirmed)} confirmed claims, expected at most {expect['max_confirmed']}")
+    # required notices must come back as Gazette claims, so gate C checks their quotes
+    gazette = [c for c in confirmed if c.get("source_type") == "gazette"]
     for want in expect.get("cite_sources", []):
-        if not cites(confirmed, want["source_id"], want.get("kind")):
+        if not cites(gazette, want["source_id"], want.get("kind")):
             fails.append(f"no confirmed {want.get('kind', 'claim')} citing {want['source_id']}")
     if "may_cite_sources" in expect:
         allowed = {w["source_id"] for w in expect.get("cite_sources", [])} | set(expect["may_cite_sources"])
