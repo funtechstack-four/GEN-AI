@@ -67,6 +67,14 @@ def test_claim_with_wrong_kind_or_unlisted_source_fails():
     assert any("unexpected sources" in f for f in fails)
 
 
+def test_required_notice_must_be_a_gazette_claim():
+    # tagged as registry, gate C would never check its quote, so the case must fail
+    dossier = {"verdict": "HIGH RISK", "timeline": [claim(source_type="registry"),
+                                                    claim(claim_id="c2", source_id="2024-05-17:5885")]}
+    fails = check_case(dossier, HIGH_RISK, set())
+    assert any("2024-10-04:12679" in f for f in fails)
+
+
 def test_allow_list_ignores_registry_claims_and_survives_missing_source_id():
     base = [claim(), claim(claim_id="c2", source_id="2024-05-17:5885")]
     registry = claim(claim_id="c3", kind="registry", source_type="registry", source_id="registry:954")

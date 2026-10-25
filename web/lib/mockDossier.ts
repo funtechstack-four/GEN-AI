@@ -1,6 +1,7 @@
 // A stand-in for the real agent while the backend isn't ready.
 // It only knows the three demo shapes. Nothing here is a real check.
 import type { Dossier, IntakeRequest } from "./contracts";
+import { is954, mock954 } from "./mock954";
 
 const CANCELLED_FROM = 5253001;
 const CANCELLED_TO = 5253367;
@@ -22,6 +23,13 @@ export function isCancelledSerial(serial: string): boolean {
   return Number.isInteger(n) && n >= CANCELLED_FROM && n <= CANCELLED_TO;
 }
 
+// "LR 12715/288", "L.R. No. 12715/288" or "12715/288", and nothing else
+export function isDemoHighRiskParcel(input: string): boolean {
+  // dots are only dropped in the "L.R. No." prefix, so 12715/28.8 stays a different parcel
+  const s = input.toUpperCase().replace(/\s/g, "").replace(/^L\.?R\.?(NO\.?)?/, "");
+  return s === "12715/288";
+}
+
 export function mockDossier(req: IntakeRequest): Dossier {
   const base = {
     run_id: runId(),
@@ -30,6 +38,11 @@ export function mockDossier(req: IntakeRequest): Dossier {
     objection_windows: [],
     advocate_review: [],
   };
+
+  // Cases 1b and 2: the real demo parcel, verdict depends on the sale date
+  if (!isCancelledSerial(req.title_serial) && is954(req.parcel_input)) {
+    return mock954(req, base, REMAINING_CHECKS);
+  }
 
   // Case 1: title paper serial is in the cancelled range -> STOP straight away
   if (isCancelledSerial(req.title_serial)) {
@@ -53,8 +66,8 @@ export function mockDossier(req: IntakeRequest): Dossier {
   }
 
   // Case 2: the demo HIGH RISK parcel (placeholder until P4 anchors a real one)
-  // whole number only: 12715/2880, 112715/288 or 12715/288/1 is a different parcel
-  if (/(?<!\d)12715\/288(?![\d/A-Za-z])/.test(req.parcel_input.replace(/\s/g, ""))) {
+  // whole identifier only: 12715/2880, 9/12715/288 or ABC12715/288 is a different parcel
+  if (isDemoHighRiskParcel(req.parcel_input)) {
     return {
       ...base,
       verdict: "HIGH RISK",
