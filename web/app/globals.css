@@ -69,6 +69,26 @@ input {
   color: var(--text);
 }
 
+select, textarea {
+  font: inherit;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+textarea { resize: vertical; }
+.provider-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.provider-actions button { flex: 1 1 160px; }
+button.secondary { background: var(--muted); }
+.provider-status { font-weight: 700; margin: 0; }
+.provider-online { color: #167044; }
+.provider-unauthorized { color: var(--stop); }
+.provider-offline { color: var(--muted); }
+.provider-chat { margin-top: 18px; }
+.provider-chat h2, .card h2 { margin: 0; }
+.provider-reply { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); padding: 12px; border-radius: 6px; }
+
 button {
   font: inherit;
   font-weight: 600;
@@ -115,6 +135,10 @@ button:disabled { opacity: 0.6; cursor: default; }
   padding-left: 10px;
   border-left: 3px solid var(--border);
   font-style: italic;
+  /* Keep normal words intact; only split an unbroken token if it would overflow. */
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
 }
 .reject { color: var(--stop); }
 

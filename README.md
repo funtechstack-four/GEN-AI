@@ -40,18 +40,18 @@ The PDFs themselves aren't committed. The scripts in `data/scripts/` download th
  Normaliser  Investigator ◀─▶ Investigator   Analyst         Critic         + Dossier Writer
    │            │   party names ▲               │               │ reject→retry once→"unverified"
    │            ▼                │               ▼               │
-   │      Zetaris REST (:8888) ◀─┘       Meterless bridge (:4001, Node + tsx)
-   │      one SQL view over 4 tables     World Model (graph) + H-MEM (patterns)
+   │      Zetaris REST (configured read-only query) ◀─┘  Meterless bridge (:4001, Node + tsx)
+   │      Gazette table currently configured             World Model + H-MEM local memory
    │            ▲
-   └─ STOP early exit if serial in range        Meterless Nightshift (:8088) → NVIDIA Nemotron
+   └─ STOP early exit if serial in range        Meterless Runtime (:8088) → routed models
                                                  └─ recorded responses for SAMPLE_MODE
 ```
 
 Each sponsor tool has one job:
 
-- **Zetaris** holds the four tables (Parquet and CSV files in the S3 bucket `tfts-land-extracts-361738333327-eu-north-1-an`, database `land_files`) behind one SQL view, plus a data-quality rule that flags notices whose parcel isn't in the registry.
-- **Meterless** World Model keeps the graph of parcels, people, notices and cases. H-MEM remembers patterns across dossiers, such as one person named in three or more lost-title notices.
-- **Meterless Nightshift** runs on the laptop and is the only AI provider the app talks to. It holds the NVIDIA key and passes calls on to **NVIDIA Nemotron**, which classifies notices and pulls out names and parcels.
+- **Zetaris** is the read-only query path for configured live tables. The current local configuration uses the Gazette notices table; judgments and registry tables are optional and are not configured. Cancelled serials are checked from the local CSV in both sample and live modes.
+- **Meterless** World Model and H-MEM persist and recall context locally from critic-confirmed claims. They provide memory context; they do not establish evidence or determine the verdict. The cancelled-serial early-stop path bypasses Meterless.
+- **Meterless Runtime** is registered as the `meterless` OpenAI-compatible provider, next to the app's other data services. The classifier uses `meterless/auto` for bounded fallback calls when deterministic notice rules find no kind. The runtime returns routing-mode ids from `/v1/models`; proposed party names are retained only if they occur in source text. The Evidence Critic and code-driven rules determine which claims are confirmed and how the verdict is assigned.
 
 ## Repo layout
 
@@ -81,7 +81,30 @@ cp .env.example .env            # then fill in your own keys
 pytest tests
 ```
 
-`.env.example` lists every setting. Leave `SAMPLE_MODE=true` to run on recorded responses with no keys and no network. Set it to `false` and fill in `METERLESS_RUNTIME_TOKEN` (from Nightshift), `ZETARIS_REST_URL` and `ZETARIS_API_KEY` to run live. Nightshift has to be running, with your NVIDIA key added in its Providers tab. Never commit `.env`.
+`.env.example` lists the legacy environment fallback settings. Leave `SAMPLE_MODE=true` to run on recorded responses with no provider calls. Open `http://localhost:3100/providers` to configure Meterless Runtime, paste its token or a `/connect#k=...` link, and use Auto Detect or enter its URL. The local API imports `<stateDir>/proxy-token` into `.state/provider-settings.json` under `meterless_runtime_token`. Tokens and provider settings stay in ignored `.state/`; never commit them. For live data, set `SAMPLE_MODE=false` and configure `ZETARIS_REST_URL` and `ZETARIS_API_KEY` as before.
+
+### Running the agents
+
+The LangGraph workflow has focused roles for intake normalization, cancelled-serial triage, Gazette and court investigation, evidence criticism, and risk assessment. Confirmed sources are checked against the exact normalized parcel and their quotes must occur verbatim in the fetched source text. The verdict is code-driven; retrieved memories and model classifications cannot independently create evidence.
+
+The Meterless bridge runs the vendored World Model and H-MEM reference engines without modifying `vendor/meterless/`. It persists the source graph and evidence-pattern memories in `.state/meterless/`. Start the bridge and agents API in separate terminals:
+
+```powershell
+cd services/meterless-bridge
+npm install
+npm start
+```
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn agents.api:app --reload --port 8000
+```
+
+For AWS-backed reads, set `SAMPLE_MODE=false` in the untracked `.env`, provide the Zetaris API key and organization ID, and point `ZETARIS_REST_URL` at the EC2 instance's REST endpoint (or its existing local SSH tunnel). The account needs read access to the configured tables. Set the `ZETARIS_*_TABLE` values if their names differ. The client issues read-only SQL through Zetaris' SQL query endpoint. It does not create or modify tables. When Meterless Runtime is online, the classifier sends otherwise-unclassified notices to the `meterless/auto` route; party names must match source text, and only the Evidence Critic can confirm claims.
+
+Open the existing Next.js intake at `http://localhost:3100` with `NEXT_PUBLIC_API_URL=http://localhost:8000`, or submit JSON directly to `POST /dossier`. `GET /health` checks the API. Runs append structured JSONL traces under `logs/`.
 
 ### Rebuilding the Gazette data
 
@@ -111,7 +134,7 @@ SELECT notice_type, COUNT(*) FROM land_files.gazette_notices GROUP BY notice_typ
 
 ## Status
 
-The data layer is in place: the Gazette notices and cancelled serials are extracted and queryable in Zetaris. The agents, the Meterless bridge and the web app are next. Open issues show who is on what.
+The LangGraph agent API and Meterless bridge are implemented. Sample mode reads the committed extracts; live mode reads the configured Zetaris tables. The web app remains at `web/` and sends requests to the agents API. Live AWS access requires the endpoint, API key, organization ID and table names in the local, untracked `.env` file.
 
 ## Contributing
 
