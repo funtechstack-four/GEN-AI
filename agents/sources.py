@@ -110,7 +110,11 @@ def serial_notice_quote(source_id: str) -> str:
     text = str(table.column("raw_text")[0].as_py() or "")
     start = text.find("5253001")
     end = text.find("5253367", start) if start >= 0 else -1
-    return text[max(0, start - 120): min(len(text), end + 260)] if end >= 0 else text[:500]
+    from agents.excerpt import snap_to_words
+
+    if end < 0:
+        return snap_to_words(text, 0, 500)
+    return snap_to_words(text, start - 120, end + 260)
 
 
 def query_notices(parcel: str, parcel_variants: list[str]) -> list[dict[str, Any]]:

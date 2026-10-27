@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from agents.excerpt import snap_to_words
 from data import normalizer
 
 
@@ -26,7 +27,7 @@ def quote_for(parcel: str, text: str) -> str:
     # A short literal source window gives the reader context while remaining provably verbatim.
     start = max(0, hit.start() - 120)
     end = min(len(text), hit.end() + 220)
-    return text[start:end].strip()
+    return snap_to_words(text, start, end)
 
 
 def critic_claim(parcel: str, row: dict[str, Any], claim: dict[str, Any]) -> tuple[bool, str]:

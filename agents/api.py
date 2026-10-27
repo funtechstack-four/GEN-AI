@@ -125,9 +125,10 @@ def meterless_chat(request: MeterlessChatInput) -> dict[str, str]:
 def dossier(request: IntakeRequest) -> Dossier:
     try:
         date.fromisoformat(request.sale_date)
-        result = run_dossier(request.model_dump())
-        return Dossier.model_validate(result)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="sale_date must be a valid ISO date") from exc
+    try:
+        result = run_dossier(request.model_dump())
+        return Dossier.model_validate(result)
     except SourceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
