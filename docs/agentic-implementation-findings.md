@@ -27,7 +27,7 @@ The repository-root `.env` currently sets `SAMPLE_MODE=false` and configures `la
 | Environment and Land Court judgments | `data/extracts/judgments.csv` in sample mode, built from 14 selected Kenya Law decisions. | No live judgments table is configured. The sample is curated and small, not comprehensive. |
 | Registry | `data/extracts/synthetic_registry.csv` in sample mode; each row is synthetic. | No live registry table is configured. It must never be presented as an official ownership check. |
 | Seller details | Buyer can enter a seller name in the web form. | The current agent does not compare it to a registry proprietor. Avoid collecting identity data until there is an approved purpose, consent flow, and retention policy. |
-| Survey/cadastre data | No active adapter or repository dataset found. | The buyer’s Nairobi map could add parcel geometry/identifier matching, subject to the map assessment below. |
+| Survey/cadastre data | No active adapter. A user-supplied Nairobi cadastre ZIP has now been inspected at the archive/header level; it has not been extracted, added to the repository, or connected to runtime. | It contains polygon and polyline layers and useful parcel identifiers. Provenance, date, coverage, and license still need confirmation; see the map assessment below. |
 
 The live Zetaris client is read-only and executes SQL through the configured Zetaris endpoint. It does not itself ingest or update source data. See `agents/sources.py`, `agents/config.py`, `data/scripts/`, and the source table in `README.md`.
 
@@ -143,14 +143,18 @@ The Land Registration Act describes the register and official searches, and trea
 
 ## Nairobi cadastre map assessment
 
-The map is not currently present in the repository. Before integrating it, collect:
+The user supplied `NEW NAIROBI CADASTRE PROJECTED.zip`. Inspection was limited to ZIP entries and shapefile headers/DBF schemas; no feature/owner values were read. The archive is about 46.6 MB and contains about 2.35 GB uncompressed.
 
-1. Original file(s) and format: vector GIS (GeoPackage, Shapefile, GeoJSON) is preferred; a georeferenced raster is usable; an image/PDF without georeferencing is only a visual reference.
-2. Publisher/authority, license or permission to process it, publication/revision date, and known completeness.
-3. Coordinate reference system, registration section/block coverage, parcel identifier fields, and whether parcel boundaries are authoritative or indicative.
-4. A small set of independently checked sample parcels to measure geocoding and parcel-join errors.
+| Layer | GIS structure | Records | Useful fields / observations |
+|---|---|---:|---|
+| `NLIMS PARCELS` | ESRI Shapefile polygon layer (shape type 5) with `.shp`, `.shx`, `.dbf`, `.prj`, `.cpg`, `.sbn`, and `.sbx` files. | 247,119 | Includes `fr_number`, `rim_name`, `lr_number`, `parcel_num`, `sheet_numb`, `reg_block`, `block_name`, `county`, and `sub_county`. The DBF also has an `owner` field; treat its values as potentially personal data and do not ingest them for the initial geometry/parcel-ID prototype. |
+| `PARCEL POLYLINES` | ESRI Shapefile polyline layer (shape type 3) with corresponding sidecars. | 215,310 | Includes `fr_number`, `lr_number`, `parcel_num`, `floor_numb`, `house_numb`, `reg_block`, `block_name`, and `county`; it also has an `owner` field. |
 
-If structured and authorized, index parcel polygons by normalized parcel ID and spatial index. Use the map to resolve aliases, detect duplicate/overlapping geometries, compare claimed location/area, and route ambiguous matches to review. Do not use geometry alone to infer owner, title validity, or a legal boundary determination. Keep source version and geometry provenance on every spatial result.
+Both layers declare WGS 84 / UTM Zone 37S in their `.prj` and have matching bounds of approximately 240,118–289,103 m easting and 9,846,345–9,871,614 m northing. This is consistent with a Nairobi-area projected extent, but header bounds alone do not prove the data is authoritative or complete for Nairobi. The archive contains no source/date/license metadata file; those facts must be obtained from the provider.
+
+The structure is technically suitable for a parcel matching prototype: normalize `lr_number`, `parcel_num`, `fr_number`, and block/RIM identifiers, then join to polygon geometries and spatially index only the needed records. Before production use, confirm publisher/authority, license or permission, publication/revision date, coverage, field definitions, and whether geometry is authoritative or indicative. Test parcel joins against independently checked examples, including aliases and duplicate identifiers.
+
+Do not use geometry alone to infer owner, title validity, or a legal boundary determination. Keep the original archive outside Git (the expanded data is large), remove GIS lock files from any processing copy, and preserve the source version and geometry provenance for each result. Exclude the `owner` field unless its use has a documented lawful basis, explicit purpose, access controls, and retention policy.
 
 ## Citation and explanation design
 
