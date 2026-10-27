@@ -43,7 +43,7 @@ The PDFs themselves aren't committed. The scripts in `data/scripts/` download th
    │      Zetaris REST (configured read-only query) ◀─┘  Meterless bridge (:4001, Node + tsx)
    │      Gazette table currently configured             World Model + H-MEM local memory
    │            ▲
-   └─ STOP early exit if serial in range        Meterless Nightshift (:8088) → NVIDIA Nemotron
+   └─ STOP early exit if serial in range        Meterless Runtime (:8088) → routed models
                                                  └─ recorded responses for SAMPLE_MODE
 ```
 
@@ -51,7 +51,7 @@ Each sponsor tool has one job:
 
 - **Zetaris** is the read-only query path for configured live tables. The current local configuration uses the Gazette notices table; judgments and registry tables are optional and are not configured. Cancelled serials are checked from the local CSV in both sample and live modes.
 - **Meterless** World Model and H-MEM persist and recall context locally from critic-confirmed claims. They provide memory context; they do not establish evidence or determine the verdict. The cancelled-serial early-stop path bypasses Meterless.
-- **Meterless Nightshift** runs on the laptop and is the only AI provider endpoint the app calls. It holds the NVIDIA key and forwards bounded fallback calls to **NVIDIA Nemotron** when deterministic notice rules find no kind and a runtime token is configured. Nemotron proposes a notice kind and party names from the excerpt; names are retained only if they occur in source text. The Evidence Critic and code-driven rules determine which claims are confirmed and how the verdict is assigned.
+- **Meterless Runtime** is registered as the `meterless` OpenAI-compatible provider, next to the app's other data services. The classifier uses `meterless/auto` for bounded fallback calls when deterministic notice rules find no kind. The runtime returns routing-mode ids from `/v1/models`; proposed party names are retained only if they occur in source text. The Evidence Critic and code-driven rules determine which claims are confirmed and how the verdict is assigned.
 
 ## Repo layout
 
@@ -81,7 +81,7 @@ cp .env.example .env            # then fill in your own keys
 pytest tests
 ```
 
-`.env.example` lists every setting. Leave `SAMPLE_MODE=true` to run on recorded responses with no keys and no network. Set it to `false` and fill in `METERLESS_RUNTIME_TOKEN` (from Nightshift), `ZETARIS_REST_URL` and `ZETARIS_API_KEY` to run live. Nightshift has to be running, with your NVIDIA key added in its Providers tab. Never commit `.env`.
+`.env.example` lists the legacy environment fallback settings. Leave `SAMPLE_MODE=true` to run on recorded responses with no provider calls. Open `http://localhost:3100/providers` to configure Meterless Runtime, paste its token or a `/connect#k=...` link, and use Auto Detect or enter its URL. The local API imports `<stateDir>/proxy-token` into `.state/provider-settings.json` under `meterless_runtime_token`. Tokens and provider settings stay in ignored `.state/`; never commit them. For live data, set `SAMPLE_MODE=false` and configure `ZETARIS_REST_URL` and `ZETARIS_API_KEY` as before.
 
 ### Running the agents
 
@@ -102,7 +102,7 @@ pip install -r requirements.txt
 uvicorn agents.api:app --reload --port 8000
 ```
 
-For AWS-backed reads, set `SAMPLE_MODE=false` in the untracked `.env`, provide the Zetaris API key and organization ID, and point `ZETARIS_REST_URL` at the EC2 instance's REST endpoint (or its existing local SSH tunnel). The account needs read access to the configured tables. Set the `ZETARIS_*_TABLE` values if their names differ. The client issues read-only SQL through Zetaris' SQL query endpoint. It does not create or modify tables. When Nightshift is running and configured, Nemotron proposes a kind and party names only for notices the deterministic classifier cannot classify; party names must match the source text, and only the Evidence Critic can confirm source claims.
+For AWS-backed reads, set `SAMPLE_MODE=false` in the untracked `.env`, provide the Zetaris API key and organization ID, and point `ZETARIS_REST_URL` at the EC2 instance's REST endpoint (or its existing local SSH tunnel). The account needs read access to the configured tables. Set the `ZETARIS_*_TABLE` values if their names differ. The client issues read-only SQL through Zetaris' SQL query endpoint. It does not create or modify tables. When Meterless Runtime is online, the classifier sends otherwise-unclassified notices to the `meterless/auto` route; party names must match source text, and only the Evidence Critic can confirm claims.
 
 Open the existing Next.js intake at `http://localhost:3100` with `NEXT_PUBLIC_API_URL=http://localhost:8000`, or submit JSON directly to `POST /dossier`. `GET /health` checks the API. Runs append structured JSONL traces under `logs/`.
 

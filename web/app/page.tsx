@@ -69,6 +69,7 @@ export default function IntakePage() {
         titles and impersonated owners leave no public trace. Always do an official search
         and use an advocate.
       </p>
+      <p className="fine"><a href="/providers">AI provider settings</a></p>
     </main>
   );
 }

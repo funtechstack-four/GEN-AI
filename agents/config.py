@@ -43,4 +43,7 @@ ZETARIS_SERIALS_TABLE = setting("ZETARIS_SERIALS_TABLE", "land_files.cancelled_s
 METERLESS_BRIDGE_URL = setting("METERLESS_BRIDGE_URL", "http://localhost:4001").rstrip("/")
 METERLESS_BASE_URL = setting("METERLESS_BASE_URL", "http://127.0.0.1:8088/v1").rstrip("/")
 METERLESS_RUNTIME_TOKEN = setting("METERLESS_RUNTIME_TOKEN")
-METERLESS_MODEL = setting("NEMOTRON_MODEL", setting("METERLESS_MODEL", "meterless/auto"))
+_MODEL_CANDIDATE = setting("METERLESS_MODEL", setting("NEMOTRON_MODEL", "meterless/auto"))
+# Meterless model ids select routing modes (for example meterless/auto), not
+# NVIDIA's underlying model names. Ignore stale model-name settings safely.
+METERLESS_MODEL = _MODEL_CANDIDATE if _MODEL_CANDIDATE.startswith("meterless/") else "meterless/auto"

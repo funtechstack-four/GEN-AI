@@ -61,7 +61,7 @@ flowchart TD
     Mode -->|"live"| LiveData
     LocalData --> Candidates["Gazette and judgment candidates"]
     LiveData --> Candidates
-    Candidates --> Classify["classify candidate<br/>rules first; optional Nightshift/Nemotron fallback"]
+    Candidates --> Classify["classify candidate<br/>rules first; Meterless Runtime routing fallback"]
     Classify --> Critic["evidence_critic<br/>parcel match + verbatim quote checks"]
     Critic --> Claims["confirmed / rejected claims"]
     Claims --> Memory["meterless_context<br/>send confirmed evidence only"]
@@ -118,7 +118,7 @@ flowchart LR
 | `intake_normalizer` | Normalizes the parcel input and initializes graph state. | Receives all intake fields; seller name is not used for owner matching. |
 | `serial_guard` | Checks title serial against local cancelled-serial CSV. | A match creates a confirmed claim directly and routes to assessment; it does not pass through the evidence critic or Meterless. |
 | `investigate` | Calls the notice, judgment, and registry adapters in sequence. | Sample mode reads local extracts. Live mode reads configured Zetaris tables; currently only Gazette is configured. It logs a `court_investigator` delegate event, but does not start a separate court-agent process. |
-| `classify` helper | Applies text rules first; if no rule matches and a runtime token is configured, requests a bounded kind and party-name proposal from Nightshift/Nemotron. | Party proposals are accepted only when their exact text occurs in the source. Classification does not confirm the claim or decide the verdict. |
+| `classify` helper | Applies text rules first; if no rule matches and a runtime token is configured, requests a bounded kind and party-name proposal through Meterless Runtime. | Party proposals are accepted only when their exact text occurs in the source. Classification does not confirm the claim or decide the verdict. |
 | `evidence_critic` | Checks parcel identity and verifies a quote against the candidate source text. | Sets claim status to confirmed or rejected and emits trace events. |
 | `meterless_context` | Sends critic-confirmed evidence to the local Meterless bridge. | World Model and H-MEM persist/retrieve source relationships and patterns. Memory cannot create evidence; its summaries may be included in advocate-review notes. |
 | `assess_and_write` | Applies fixed verdict and objection-window rules, then assembles the dossier. | STOP for a cancelled serial, a recent confirmed Gazette lost-title claim, or a confirmed court order; HIGH RISK for other confirmed claims; otherwise VERIFY FIRST. |
@@ -132,7 +132,7 @@ The current trace is operational logging, not the evidence presented to the buye
 |---|---|---|
 | **Zetaris** | `agents/sources.py` sends read-only SQL through the configured Zetaris REST endpoint. In the current local configuration, only `land_files.gazette_notices_agent` is configured; cancelled serials are checked locally, and judgment/registry tables are unset. | Supplies live Gazette candidate rows. It does not ingest or update records, perform seller identity matching, or provide a live official register in this configuration. |
 | **Meterless World Model and H-MEM** | `agents/meterless.py` calls the Node bridge in `services/meterless-bridge/`; the bridge persists state under `.state/meterless/world/` and `.state/meterless/hmem/`. | Stores and recalls context from critic-confirmed claims. This is local memory, not a source of legal evidence, a search planner, or a verdict authority. The cancelled-serial fast path bypasses it. |
-| **Meterless Nightshift + NVIDIA Nemotron** | `agents/classifier.py` first applies deterministic rules. If no rule matches and a Nightshift runtime token is configured, it calls the OpenAI-compatible Nightshift endpoint using the configured model (Nemotron in the example configuration). | Proposes a notice kind and up to 10 party names from the excerpt. Proposed names are checked for literal presence in source text before Meterless persistence; kind still passes the Evidence Critic. Nemotron does not extract/verify parcel IDs, plan searches, confirm evidence, or determine the verdict. A failed/invalid response returns no model classification. |
+| **Meterless Runtime** | `agents/meterless_provider.py` implements provider id `meterless`; `agents/classifier.py` sends otherwise-unclassified excerpts to the discovered `meterless/auto` routing mode. | Proposes a notice kind and up to 10 party names from the excerpt. Proposed names are checked for literal presence in source text before Meterless persistence; kind still passes the Evidence Critic. The provider status is based on `/v1/models` (not `/healthz`); it does not establish evidence or determine the verdict. |
 
 Party values may come from source rows or a Nemotron proposal on otherwise unclassified excerpts. In either case, the Meterless path retains only names whose normalized text occurs in the source. Parcel extraction by Nemotron is unimplemented. A future architecture may use an LLM for bounded query or extraction proposals, but only the verifier should confirm claims and only deterministic policy should assign the verdict.
 
