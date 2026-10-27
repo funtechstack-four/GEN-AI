@@ -40,8 +40,8 @@ The PDFs themselves aren't committed. The scripts in `data/scripts/` download th
  Normaliser  Investigator ◀─▶ Investigator   Analyst         Critic         + Dossier Writer
    │            │   party names ▲               │               │ reject→retry once→"unverified"
    │            ▼                │               ▼               │
-   │      Zetaris REST (:8888) ◀─┘       Meterless bridge (:4001, Node + tsx)
-   │      one SQL view over 4 tables     World Model (graph) + H-MEM (patterns)
+   │      Zetaris REST (configured read-only query) ◀─┘  Meterless bridge (:4001, Node + tsx)
+   │      Gazette table currently configured             World Model + H-MEM local memory
    │            ▲
    └─ STOP early exit if serial in range        Meterless Nightshift (:8088) → NVIDIA Nemotron
                                                  └─ recorded responses for SAMPLE_MODE
@@ -49,9 +49,9 @@ The PDFs themselves aren't committed. The scripts in `data/scripts/` download th
 
 Each sponsor tool has one job:
 
-- **Zetaris** holds the four tables (Parquet and CSV files in the S3 bucket `tfts-land-extracts-361738333327-eu-north-1-an`, database `land_files`) behind one SQL view, plus a data-quality rule that flags notices whose parcel isn't in the registry.
-- **Meterless** World Model keeps the graph of parcels, people, notices and cases. H-MEM remembers patterns across dossiers, such as one person named in three or more lost-title notices.
-- **Meterless Nightshift** runs on the laptop and is the only AI provider the app talks to. It holds the NVIDIA key and passes calls on to **NVIDIA Nemotron**, which classifies notices and pulls out names and parcels.
+- **Zetaris** is the read-only query path for configured live tables. The current local configuration uses the Gazette notices table; judgments and registry tables are optional and are not configured. Cancelled serials are checked from the local CSV in both sample and live modes.
+- **Meterless** World Model and H-MEM persist and recall context locally from critic-confirmed claims. They provide memory context; they do not establish evidence or determine the verdict. The cancelled-serial early-stop path bypasses Meterless.
+- **Meterless Nightshift** runs on the laptop and is the only AI provider endpoint the app calls. It holds the NVIDIA key and forwards optional classification fallback calls to **NVIDIA Nemotron** when deterministic notice rules find no kind and a runtime token is configured. The current classifier asks only for a notice kind; it does not extract names or parcel IDs. The Evidence Critic and code-driven rules determine which claims are confirmed and how the verdict is assigned.
 
 ## Repo layout
 

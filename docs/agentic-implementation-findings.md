@@ -10,7 +10,7 @@ The current application is an evidence-led, mostly deterministic workflow. It ca
 
 The recommended next step is to make evidence and source coverage transparent, then build an assisted ownership check around an official search result. For this implementation, the buyer or authorized admin obtains the paid, MFA-gated Ardhisasa result directly; the agent only analyzes the supplied result. Direct portal automation is out of scope. The public portal and user guidance do not establish a third-party API contract.
 
-A user-supplied Nairobi cadastre ZIP has been inspected at the archive and schema level. Its polygon and polyline layers could improve parcel identity resolution and spatial checks, but the map is not in the repository or connected to runtime. Its publisher, license, date, and coverage still need confirmation before implementation.
+A user-supplied Nairobi cadastre ZIP has been inspected at the archive and schema level. Its polygon and polyline layers could improve parcel identity resolution and spatial checks, but the map is not in the repository or connected to runtime. The archive does not identify a publisher or license; file timestamps alone do not establish when the underlying data was verified.
 
 ## What the current implementation reads
 
@@ -27,7 +27,7 @@ The repository-root `.env` currently sets `SAMPLE_MODE=false` and configures `la
 | Environment and Land Court judgments | `data/extracts/judgments.csv` in sample mode, built from 14 selected Kenya Law decisions. | No live judgments table is configured. The sample is curated and small, not comprehensive. |
 | Registry | `data/extracts/synthetic_registry.csv` in sample mode; each row is synthetic. | No live registry table is configured. It must never be presented as an official ownership check. |
 | Seller details | Buyer can enter a seller name in the web form. | The current agent does not compare it to a registry proprietor. Avoid collecting identity data until there is an approved purpose, consent flow, and retention policy. |
-| Survey/cadastre data | No active adapter. A user-supplied Nairobi cadastre ZIP has now been inspected at the archive/header level; it has not been extracted, added to the repository, or connected to runtime. | It contains polygon and polyline layers and useful parcel identifiers. Provenance, date, coverage, and license still need confirmation; see the map assessment below. |
+| Survey/cadastre data | No active adapter. A user-supplied Nairobi cadastre ZIP has been inspected at the archive, schema, and selected non-owner field-summary level; it has not been extracted, added to the repository, or connected to runtime. | It contains polygon and polyline layers and useful parcel identifiers. Publisher, license, authoritative status, data currency, and completeness still need confirmation; see the map assessment below. |
 
 The live Zetaris client is read-only and executes SQL through the configured Zetaris endpoint. It does not itself ingest or update source data. See `agents/sources.py`, `agents/config.py`, `data/scripts/`, and the source table in `README.md`.
 
@@ -126,6 +126,16 @@ flowchart LR
 
 The current trace is operational logging, not the evidence presented to the buyer. For each finding, the dossier should carry source locators and excerpts independently of trace events.
 
+## Sponsor technology usage
+
+| Technology | Where it is used now | What it does—and does not do |
+|---|---|---|
+| **Zetaris** | `agents/sources.py` sends read-only SQL through the configured Zetaris REST endpoint. In the current local configuration, only `land_files.gazette_notices_agent` is configured; cancelled serials are checked locally, and judgment/registry tables are unset. | Supplies live Gazette candidate rows. It does not ingest or update records, perform seller identity matching, or provide a live official register in this configuration. |
+| **Meterless World Model and H-MEM** | `agents/meterless.py` calls the Node bridge in `services/meterless-bridge/`; the bridge persists state under `.state/meterless/world/` and `.state/meterless/hmem/`. | Stores and recalls context from critic-confirmed claims. This is local memory, not a source of legal evidence, a search planner, or a verdict authority. The cancelled-serial fast path bypasses it. |
+| **Meterless Nightshift + NVIDIA Nemotron** | `agents/classifier.py` first applies deterministic rules. If no rule matches and a Nightshift runtime token is configured, it calls the OpenAI-compatible Nightshift endpoint using the configured model (Nemotron in the example configuration). | Optional fallback classification of a candidate into a notice kind. It does not currently extract names/parcels, plan searches, confirm evidence, or determine the verdict. A failed/invalid response returns no classification; the Evidence Critic and code-driven assessor remain authoritative. |
+
+Party values currently come from source rows and are text-checked before any confirmed claim reaches Meterless. Name/parcel extraction by Nemotron is unimplemented. A future architecture may use an LLM for bounded query or extraction proposals, but only the verifier should confirm claims and only deterministic policy should assign the verdict.
+
 ## External source feasibility
 
 Publicly viewable pages and documents do not by themselves imply an API, stable automated access, or permission to scrape. Before building each connector, confirm the source’s terms, rate limits, data reuse rights, supported access method, and any authentication requirements.
@@ -143,14 +153,16 @@ The Land Registration Act describes the register and official searches, and trea
 
 ## Nairobi cadastre map assessment
 
-The user supplied `NEW NAIROBI CADASTRE PROJECTED.zip`. Inspection was limited to ZIP entries and shapefile headers/DBF schemas; no feature/owner values were read. The archive is about 46.6 MB and contains about 2.35 GB uncompressed.
+The user supplied `NEW NAIROBI CADASTRE PROJECTED.zip`. Inspection included ZIP entries, shapefile headers/DBF schemas, and selected non-owner attribute summaries. No `owner` field values were read or copied. The archive is about 46.6 MB and contains about 2.35 GB uncompressed.
 
 | Layer | GIS structure | Records | Useful fields / observations |
 |---|---|---:|---|
 | `NLIMS PARCELS` | ESRI Shapefile polygon layer (shape type 5) with `.shp`, `.shx`, `.dbf`, `.prj`, `.cpg`, `.sbn`, and `.sbx` files. | 247,119 | Includes `fr_number`, `rim_name`, `lr_number`, `parcel_num`, `sheet_numb`, `reg_block`, `block_name`, `county`, and `sub_county`. The DBF also has an `owner` field; treat its values as potentially personal data and do not ingest them for the initial geometry/parcel-ID prototype. |
 | `PARCEL POLYLINES` | ESRI Shapefile polyline layer (shape type 3) with corresponding sidecars. | 215,310 | Includes `fr_number`, `lr_number`, `parcel_num`, `floor_numb`, `house_numb`, `reg_block`, `block_name`, and `county`; it also has an `owner` field. |
 
-Both layers declare WGS 84 / UTM Zone 37S in their `.prj` and have matching bounds of approximately 240,118–289,103 m easting and 9,846,345–9,871,614 m northing. This is consistent with a Nairobi-area projected extent, but header bounds alone do not prove the data is authoritative or complete for Nairobi. The archive contains no source/date/license metadata file; those facts must be obtained from the provider.
+Both layers declare WGS 84 / UTM Zone 37S in their `.prj` and have matching bounds of approximately 240,118–289,103 m easting and 9,846,345–9,871,614 m northing. This is consistent with a Nairobi-area projected extent, but header bounds alone do not prove the data is authoritative or complete for Nairobi. The ZIP has no comment or dedicated metadata sidecar (`.xml`, `.txt`, `.json`, or similar). The layer name `NLIMS PARCELS` is not sufficient to establish who published it. DBF headers and ZIP member timestamps are dated 16 April 2024; treat that as file/export metadata, not proof the cadastre contents were current on that date. The polyline `date_time` attribute is populated on 149 records and spans 28 June–2 July 2019; this is feature-level data, not a dataset revision date. A scan of non-owner free-text fields found one agency-name mention per layer, but no explicit publisher, source, copyright, or license statement.
+
+The polygon layer's `county` field is `Nairobi` on all 247,119 records. The polyline layer has `Nairobi` on 214,994 records and 87 records with other or nonstandard county labels; do not use that line-layer field as a strict location filter without cleanup.
 
 The structure is technically suitable for a parcel matching prototype: normalize `lr_number`, `parcel_num`, `fr_number`, and block/RIM identifiers, then join to polygon geometries and spatially index only the needed records. Before production use, confirm publisher/authority, license or permission, publication/revision date, coverage, field definitions, and whether geometry is authoritative or indicative. Test parcel joins against independently checked examples, including aliases and duplicate identifiers.
 
