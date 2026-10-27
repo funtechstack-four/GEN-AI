@@ -135,6 +135,10 @@ button:disabled { opacity: 0.6; cursor: default; }
   padding-left: 10px;
   border-left: 3px solid var(--border);
   font-style: italic;
+  /* Keep normal words intact; only split an unbroken token if it would overflow. */
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
 }
 .reject { color: var(--stop); }
 
