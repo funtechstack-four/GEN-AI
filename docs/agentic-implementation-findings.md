@@ -31,6 +31,101 @@ The repository-root `.env` currently sets `SAMPLE_MODE=false` and configures `la
 
 The live Zetaris client is read-only and executes SQL through the configured Zetaris endpoint. It does not itself ingest or update source data. See `agents/sources.py`, `agents/config.py`, `data/scripts/`, and the source table in `README.md`.
 
+## Current implementation diagrams
+
+These diagrams describe the code that exists today, not the proposed expanded agent architecture below. The graph is a fixed workflow with conditional routing; several graph nodes are deterministic functions rather than independent, self-directed agents.
+
+### Request workflow
+
+```mermaid
+flowchart TD
+    Buyer["Potential buyer"] --> Form["Next.js intake<br/>parcel · title serial · seller name · sale date"]
+    Form -->|"POST /dossier"| API["FastAPI validates request"]
+    API --> Normalize["intake_normalizer<br/>normalize parcel"]
+    Normalize --> Guard["serial_guard<br/>check local cancelled_serials.csv"]
+
+    Guard -->|"serial matched"| DirectClaim["Create confirmed serial claim<br/>quote from local Gazette extract"]
+    DirectClaim --> Assess["assess_and_write<br/>apply verdict rules and build dossier"]
+    Guard -->|"no serial match"| Investigate["investigate<br/>query source adapters"]
+
+    subgraph ReadSources["Read-only source lookups"]
+        Mode{"Sample or live mode?"}
+        LocalData["Local extracts<br/>Gazette parquet · judgments CSV<br/>synthetic registry CSV"]
+        LiveData["Zetaris REST SQL<br/>configured Gazette table<br/>judgments/registry skipped if unset"]
+        SerialCSV["Local cancelled serial CSV<br/>used in both modes"]
+    end
+
+    Guard -. "serial lookup" .-> SerialCSV
+    Investigate --> Mode
+    Mode -->|"sample"| LocalData
+    Mode -->|"live"| LiveData
+    LocalData --> Candidates["Gazette and judgment candidates"]
+    LiveData --> Candidates
+    Candidates --> Classify["classify candidate<br/>rules first; optional Nightshift/Nemotron fallback"]
+    Classify --> Critic["evidence_critic<br/>parcel match + verbatim quote checks"]
+    Critic --> Claims["confirmed / rejected claims"]
+    Claims --> Memory["meterless_context<br/>send confirmed evidence only"]
+    Memory --> Assess
+
+    Assess --> Verdict["STOP · HIGH RISK · VERIFY FIRST<br/>plus timeline, windows, gaps, next checks"]
+    Verdict --> API
+    API --> Result["Next.js stores dossier in sessionStorage<br/>and displays the result"]
+    Result --> Buyer
+
+    SellerNote["Seller name is collected<br/>but not matched to an owner"] -.-> Form
+    SerialNote["Serial early-exit bypasses<br/>investigation, critic, and Meterless"] -.-> DirectClaim
+```
+
+### Components and data stores
+
+```mermaid
+flowchart LR
+    Person["Buyer"] -->|"parcel, optional serial/name, sale date"| Web["Next.js web app<br/>web/app/page.tsx"]
+    Web -->|"POST /dossier"| HTTP["FastAPI<br/>agents/api.py"]
+    HTTP --> Graph["LangGraph fixed workflow<br/>agents/graph.py"]
+
+    subgraph LocalStores["Local files and state"]
+        Extracts[("data/extracts/<br/>Gazette parquet<br/>cancelled serial CSV<br/>sample judgments CSV<br/>synthetic registry CSV")]
+        Trace[("logs/<run_id>.jsonl<br/>workflow trace events")]
+        MeterlessState[(".state/meterless/<br/>world/ and hmem/")]
+        BrowserState[("Browser sessionStorage<br/>current dossier result")]
+    end
+
+    subgraph ExternalRead["External read path in live mode"]
+        ZetarisAPI["Zetaris REST SQL endpoint"]
+        S3Gazette[("S3-backed Gazette extract<br/>via registered Zetaris table")]
+        Unavailable["Judgments and official registry<br/>not configured in current .env"]
+        ZetarisAPI --> S3Gazette
+    end
+
+    Graph -->|"sample data and serial guard"| Extracts
+    Graph -->|"configured live Gazette query"| ZetarisAPI
+    Graph -->|"append workflow events"| Trace
+    Graph -->|"confirmed claims only"| Bridge["Meterless bridge<br/>World Model + H-MEM"]
+    Bridge --> MeterlessState
+    MeterlessState -->|"memory context for dossier"| Graph
+    Graph -->|"Dossier JSON"| HTTP
+    HTTP --> Web
+    Web -->|"store and render"| BrowserState
+    Web --> Person
+    Graph -. "source gaps surfaced in dossier" .-> Unavailable
+```
+
+### Current graph nodes
+
+| Node/component | What it does | Data interaction and limits |
+|---|---|---|
+| `intake_normalizer` | Normalizes the parcel input and initializes graph state. | Receives all intake fields; seller name is not used for owner matching. |
+| `serial_guard` | Checks title serial against local cancelled-serial CSV. | A match creates a confirmed claim directly and routes to assessment; it does not pass through the evidence critic or Meterless. |
+| `investigate` | Calls the notice, judgment, and registry adapters in sequence. | Sample mode reads local extracts. Live mode reads configured Zetaris tables; currently only Gazette is configured. It logs a `court_investigator` delegate event, but does not start a separate court-agent process. |
+| `classify` helper | Applies text rules first; if no rule matches and a runtime token is configured, requests a bounded classification from Nightshift/Nemotron. | Classification proposes a claim kind; it does not confirm the claim or decide the verdict. |
+| `evidence_critic` | Checks parcel identity and verifies a quote against the candidate source text. | Sets claim status to confirmed or rejected and emits trace events. |
+| `meterless_context` | Sends critic-confirmed evidence to the local Meterless bridge. | World Model and H-MEM persist/retrieve source relationships and patterns. Memory cannot create evidence; its summaries may be included in advocate-review notes. |
+| `assess_and_write` | Applies fixed verdict and objection-window rules, then assembles the dossier. | STOP for a cancelled serial, a recent confirmed Gazette lost-title claim, or a confirmed court order; HIGH RISK for other confirmed claims; otherwise VERIFY FIRST. |
+| FastAPI + Next.js | Validates the intake, returns the dossier, and renders it. | The web client falls back to mock data on request failure and marks the result as demo data. Dossier state is stored in browser session storage. |
+
+The current trace is operational logging, not the evidence presented to the buyer. For each finding, the dossier should carry source locators and excerpts independently of trace events.
+
 ## External source feasibility
 
 Publicly viewable pages and documents do not by themselves imply an API, stable automated access, or permission to scrape. Before building each connector, confirm the source’s terms, rate limits, data reuse rights, supported access method, and any authentication requirements.
