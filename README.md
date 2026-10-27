@@ -51,7 +51,7 @@ Each sponsor tool has one job:
 
 - **Zetaris** is the read-only query path for configured live tables. The current local configuration uses the Gazette notices table; judgments and registry tables are optional and are not configured. Cancelled serials are checked from the local CSV in both sample and live modes.
 - **Meterless** World Model and H-MEM persist and recall context locally from critic-confirmed claims. They provide memory context; they do not establish evidence or determine the verdict. The cancelled-serial early-stop path bypasses Meterless.
-- **Meterless Nightshift** runs on the laptop and is the only AI provider endpoint the app calls. It holds the NVIDIA key and forwards optional classification fallback calls to **NVIDIA Nemotron** when deterministic notice rules find no kind and a runtime token is configured. The current classifier asks only for a notice kind; it does not extract names or parcel IDs. The Evidence Critic and code-driven rules determine which claims are confirmed and how the verdict is assigned.
+- **Meterless Nightshift** runs on the laptop and is the only AI provider endpoint the app calls. It holds the NVIDIA key and forwards bounded fallback calls to **NVIDIA Nemotron** when deterministic notice rules find no kind and a runtime token is configured. Nemotron proposes a notice kind and party names from the excerpt; names are retained only if they occur in source text. The Evidence Critic and code-driven rules determine which claims are confirmed and how the verdict is assigned.
 
 ## Repo layout
 
@@ -102,7 +102,7 @@ pip install -r requirements.txt
 uvicorn agents.api:app --reload --port 8000
 ```
 
-For AWS-backed reads, set `SAMPLE_MODE=false` in the untracked `.env`, provide the Zetaris API key and organization ID, and point `ZETARIS_REST_URL` at the EC2 instance's REST endpoint (or its existing local SSH tunnel). The account needs read access to the four configured tables. Set the `ZETARIS_*_TABLE` values if their names differ. The client issues read-only SQL through Zetaris' SQL query endpoint. It does not create or modify tables. If Nightshift is configured, Nemotron classifies only notices that the deterministic classifier cannot classify; only the Evidence Critic can confirm source claims.
+For AWS-backed reads, set `SAMPLE_MODE=false` in the untracked `.env`, provide the Zetaris API key and organization ID, and point `ZETARIS_REST_URL` at the EC2 instance's REST endpoint (or its existing local SSH tunnel). The account needs read access to the configured tables. Set the `ZETARIS_*_TABLE` values if their names differ. The client issues read-only SQL through Zetaris' SQL query endpoint. It does not create or modify tables. When Nightshift is running and configured, Nemotron proposes a kind and party names only for notices the deterministic classifier cannot classify; party names must match the source text, and only the Evidence Critic can confirm source claims.
 
 Open the existing Next.js intake at `http://localhost:3100` with `NEXT_PUBLIC_API_URL=http://localhost:8000`, or submit JSON directly to `POST /dossier`. `GET /health` checks the API. Runs append structured JSONL traces under `logs/`.
 

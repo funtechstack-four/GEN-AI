@@ -8,7 +8,7 @@ from typing import Any, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from agents import config
-from agents.classifier import classify
+from agents.classifier import analyze
 from agents.critic import critic_claim, quote_for
 from agents.sources import query_cancelled_serial, query_judgments, query_notices, query_registry, serial_notice_quote
 from agents.trace import record
@@ -90,15 +90,25 @@ def evidence_critic(state: AgentState) -> dict[str, Any]:
         return {"claims": []}
     out: list[dict[str, Any]] = []
     for candidate in state.get("candidates", []):
-        row, source_type = candidate["row"], candidate["source_type"]
+        row, source_type = dict(candidate["row"]), candidate["source_type"]
         text = str(row.get("raw_text") or row.get("excerpt") or "")
-        kind = classify(row)
+        analysis = analyze(row)
+        kind = analysis["kind"]
+        if analysis["kind_source"] == "nemotron":
+            record(run_id, "nemotron_proposal", source_id=_source_id(row, source_type), kind=kind,
+                   party_count=len(analysis["parties"]))
         if kind not in {"lost_title", "succession", "dispute", "court_order", "acquisition", "transfer"}:
             continue
+        # Nemotron party names are proposals only. Meterless applies an additional
+        # exact-source-text check before any name is persisted to memory.
+        if analysis["parties"] and not row.get("parties"):
+            row["parties"] = analysis["parties"]
+            candidate["row"] = row
         quote = quote_for(pid.label, text)
         claim = {
             "claim_id": f"c{len(out) + 1}", "kind": kind, "parcel_id": pid.label, "quote": quote,
             "source_type": source_type, "source_id": _source_id(row, source_type),
+            "classification_source": analysis["kind_source"],
             "status": "pending", "reject_reason": None,
         }
         ok, reason = critic_claim(pid.label, row, claim)
