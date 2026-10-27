@@ -83,6 +83,29 @@ pytest tests
 
 `.env.example` lists every setting. Leave `SAMPLE_MODE=true` to run on recorded responses with no keys and no network. Set it to `false` and fill in `METERLESS_RUNTIME_TOKEN` (from Nightshift), `ZETARIS_REST_URL` and `ZETARIS_API_KEY` to run live. Nightshift has to be running, with your NVIDIA key added in its Providers tab. Never commit `.env`.
 
+### Running the agents
+
+The LangGraph workflow has focused roles for intake normalization, cancelled-serial triage, Gazette and court investigation, evidence criticism, and risk assessment. Confirmed sources are checked against the exact normalized parcel and their quotes must occur verbatim in the fetched source text. The verdict is code-driven; retrieved memories and model classifications cannot independently create evidence.
+
+The Meterless bridge runs the vendored World Model and H-MEM reference engines without modifying `vendor/meterless/`. It persists the source graph and evidence-pattern memories in `.state/meterless/`. Start the bridge and agents API in separate terminals:
+
+```powershell
+cd services/meterless-bridge
+npm install
+npm start
+```
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn agents.api:app --reload --port 8000
+```
+
+For AWS-backed reads, set `SAMPLE_MODE=false` in the untracked `.env`, provide the Zetaris API key and organization ID, and point `ZETARIS_REST_URL` at the EC2 instance's REST endpoint (or its existing local SSH tunnel). The account needs read access to the four configured tables. Set the `ZETARIS_*_TABLE` values if their names differ. The client issues read-only SQL through Zetaris' SQL query endpoint. It does not create or modify tables. If Nightshift is configured, Nemotron classifies only notices that the deterministic classifier cannot classify; only the Evidence Critic can confirm source claims.
+
+Open the existing Next.js intake at `http://localhost:3100` with `NEXT_PUBLIC_API_URL=http://localhost:8000`, or submit JSON directly to `POST /dossier`. `GET /health` checks the API. Runs append structured JSONL traces under `logs/`.
+
 ### Rebuilding the Gazette data
 
 This takes about an hour, mostly downloading. The PDFs land in `data/raw/gazette/`, which git ignores.
@@ -111,7 +134,7 @@ SELECT notice_type, COUNT(*) FROM land_files.gazette_notices GROUP BY notice_typ
 
 ## Status
 
-The data layer is in place: the Gazette notices and cancelled serials are extracted and queryable in Zetaris. The agents, the Meterless bridge and the web app are next. Open issues show who is on what.
+The LangGraph agent API and Meterless bridge are implemented. Sample mode reads the committed extracts; live mode reads the configured Zetaris tables. The web app remains at `web/` and sends requests to the agents API. Live AWS access requires the endpoint, API key, organization ID and table names in the local, untracked `.env` file.
 
 ## Contributing
 
