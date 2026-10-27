@@ -134,7 +134,7 @@ Publicly viewable pages and documents do not by themselves imply an API, stable 
 |---|---|---|
 | [Kenya Law Gazette archive](https://kenyalaw.org/gazettes/) | Gazette issue pages and issue PDFs; extract notices, source IDs, text, and source URLs. | Existing scripts already list issues and download PDFs with a delay. This is the clearest available ingestion path, but it is a website/PDF workflow, not a confirmed API. Keep the current respectful rate limiting and record failures. |
 | [Kenya Law judgments](https://new.kenyalaw.org) | Environment and Land Court decisions and other relevant judgments. | Repository tooling fetches a hand-picked set of pages. A wider search API or bulk feed has not been verified. Build only from documented/authorized interfaces and preserve decision URLs, court, case number, date, and paragraph/page anchors. |
-| [Ardhisasa](https://ardhisasa.lands.go.ke/home) | Official search for registered proprietor and registered interests. | A portal workflow is documented; individual access describes identity verification and OTP login, and its FAQ defines a search as confirming ownership details and registered interests. No public third-party developer API documentation was identified in the official material reviewed. Treat API access as **unconfirmed**. Do not automate a buyer’s password/OTP flow or scrape behind login. Seek written integration authorization. |
+| [Ardhisasa](https://ardhisasa.lands.go.ke/home) | Official search for registered proprietor and registered interests. | **Human/admin-only boundary for this implementation.** Per the product owner's workflow constraint, searches are fee-bearing and MFA-gated; an authorized buyer/admin accesses the portal directly, completes payment and MFA there, and obtains the official result. The agent does not log in, handle OTPs, make payments, or scrape authenticated pages. No public third-party developer API documentation was identified in the official material reviewed. Any future official API proposal requires a separate authorization, security, and privacy review; it is not an assumed dependency. |
 | State Department search certificate | Official current register details and encumbrances. | The State Department describes the certificate as a direct registry search for ownership status and encumbrances. Near-term route: buyer obtains the official result and supplies it to the app for assisted extraction/comparison. An upload is sensitive data and needs explicit consent, encryption, limited access, and deletion controls. |
 | State Department survey search / Nairobi cadastre | Plans, dimensions, survey numbers, beacons, and parcel geometry. | Potentially useful for resolving parcel identity and comparing boundaries, but does not establish registered ownership. Direct access is unconfirmed; the user's map must be assessed before selecting a parser or geospatial data store. |
 | General web search / third-party property pages | Discovery leads only. | Do not treat scraped listings, blogs, or name matches as proof of ownership. They can generate leads for primary-source searches, clearly labeled as unverified. |
@@ -191,12 +191,14 @@ Meterless World Model/H-MEM can continue to store relationships/patterns derived
 
 ### Near-term assisted ownership check
 
-1. Ask the buyer to obtain a fresh official search through the government channel, or use a formally authorized API if one becomes available.
-2. Accept the official result through a consented, secure upload. Do not request or store Ardhisasa login credentials or OTPs.
+1. The buyer or authorized admin performs the paid search directly in Ardhisasa and completes MFA outside this product.
+2. The buyer/admin obtains the official result and provides it through a consented, secure handoff/upload. Do not request or store Ardhisasa login credentials or OTPs, initiate payment, or automate the logged-in portal.
 3. Extract proprietor(s), parcel/title identifiers, tenure, encumbrances/restrictions/cautions/charges, and pending applications where present.
 4. Compare those values with the buyer's parcel, supplied title particulars, and seller name. If identity comparison requires national ID data, scope and retention must be explicit; ideally use a privacy-minimized match and delete the raw ID after comparison.
-5. Mark the document as buyer-supplied until authenticity is checked through an official verification mechanism. Show mismatches and missing fields for advocate review.
+5. Mark the document as buyer/admin-supplied until authenticity is checked through an official verification mechanism. Show mismatches and missing fields for advocate review.
 6. Keep physical possession, site boundaries, and questions of legal authority in the unresolved checklist unless an appropriately qualified source/process verifies them.
+
+The product should record that the official-search step was completed by a human/admin, when the result was issued, and which file/result was analyzed. The application should not imply that it itself accessed Ardhisasa or paid for the search. If no official result is supplied, ownership verification remains explicitly incomplete.
 
 ### Autonomy boundary
 
@@ -263,8 +265,8 @@ The current `eval/run_cases.py` and `eval/cases.yaml` are a starting harness, no
 
 ## Open dependencies
 
-1. Obtain the Nairobi cadastre file, source/authority/license details, and any accompanying projection or metadata.
-2. Confirm with the State Department whether an authorized Ardhisasa/registry API or institutional integration exists and what permission, fees, and data terms apply.
+1. Obtain the Nairobi cadastre publisher/authority, license, revision date, coverage, and field definitions; the supplied ZIP does not include this metadata.
+2. Define which buyer/admin role performs the Ardhisasa search, how the result is securely handed to the application, and how the product records source, issue date, consent, and deletion. Direct agent access remains out of scope unless the product owner revisits this boundary and an official integration is authorized and separately reviewed.
 3. Decide who may upload official-search certificates, how identity fields are handled, and retention/deletion periods.
 4. Confirm permitted automated retrieval and reuse terms for Kenya Law Gazette and judgment content at the scale intended.
 5. Expand the human-reviewed evaluation set before broadening sources or changing verdict policy.
